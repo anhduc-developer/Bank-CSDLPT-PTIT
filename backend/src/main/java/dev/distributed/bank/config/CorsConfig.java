@@ -5,12 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * CORS Configuration — cho phép frontend gọi API.
- *
- * Cho phép tất cả origin (development mode).
- * Trong production cần giới hạn origin cụ thể.
- */
 @Configuration
 public class CorsConfig {
 

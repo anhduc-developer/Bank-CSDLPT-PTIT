@@ -84,4 +84,14 @@ export const demoApi = {
   deadlock: (data) => API.post('/demo/deadlock', data, { timeout: 30000 }),
 };
 
+// ============================================================
+// REPLICATION APIs
+// ============================================================
+export const replicationApi = {
+  getStatus: () => API.get('/replication/status'),
+  compare: (branchId) => API.get(`/replication/compare/${branchId}`),
+  compareAll: () => API.get('/replication/compare-all'),
+  demoLag: (branchId) => API.post(`/replication/demo-lag/${branchId}`, {}, { timeout: 15000 }),
+};
+
 export default API;

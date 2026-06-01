@@ -26,23 +26,10 @@ import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * Service: Quản lý tài khoản + Giao dịch LOCAL (gửi/rút tiền).
- *
- * Tất cả giao dịch trong service này là LOCAL — chỉ ảnh hưởng 1 site.
- * Giao dịch phân tán (inter-branch) nằm ở TransferService.
- *
- * Sử dụng:
- * - JdbcTemplate: chạy SQL
- * - TransactionManager: quản lý BEGIN/COMMIT/ROLLBACK thủ công
- * - SELECT FOR UPDATE: pessimistic locking cho withdraw
- */
 @Service
 public class AccountService {
 
     private final SiteRouter siteRouter;
-
-    /** RowMapper: chuyển ResultSet → Account object */
     private final RowMapper<Account> accountRowMapper = (rs, rowNum) -> {
         Account a = new Account();
         a.setAccountId(rs.getLong("account_id"));
@@ -78,17 +65,11 @@ public class AccountService {
         this.siteRouter = siteRouter;
     }
 
-    // ============================================================
-    // CRUD Operations
-    // ============================================================
-
-    /** Lấy danh sách tài khoản theo chi nhánh */
     public List<Account> getAccountsByBranch(String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         return jdbc.query("SELECT * FROM account ORDER BY account_id", accountRowMapper);
     }
 
-    /** Lấy chi tiết 1 tài khoản */
     public Account getAccountById(Long id, String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         List<Account> accounts = jdbc.query(
@@ -101,7 +82,6 @@ public class AccountService {
         return accounts.get(0);
     }
 
-    /** Tạo tài khoản mới */
     public Account createAccount(CreateAccountRequest request) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(request.getBranchId());
         BigDecimal initialBalance = request.getInitialBalance() != null
@@ -123,7 +103,6 @@ public class AccountService {
         return getAccountById(newId, request.getBranchId());
     }
 
-    /** Tra cứu số dư */
     public BalanceResponse getBalance(Long accountId, String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         List<BalanceResponse> results = jdbc.query(
@@ -144,14 +123,6 @@ public class AccountService {
         return results.get(0);
     }
 
-    // ============================================================
-    // KIỂM TRA TRẠNG THÁI TÀI KHOẢN
-    // ============================================================
-
-    /**
-     * Kiểm tra tài khoản có ACTIVE không.
-     * Nếu không ACTIVE → throw AccountInactiveException.
-     */
     private void checkAccountActive(JdbcTemplate jdbc, Long accountId) {
         String status = jdbc.queryForObject(
                 "SELECT status FROM account WHERE account_id = ?",
@@ -166,59 +137,26 @@ public class AccountService {
         }
     }
 
-    // ============================================================
-    // GỬI TIỀN (Deposit) — Giao dịch LOCAL
-    // ============================================================
-
-    /**
-     * Gửi tiền vào tài khoản.
-     * Đây là giao dịch LOCAL — chỉ ảnh hưởng 1 site.
-     *
-     * Flow:
-     * 1. Kiểm tra tài khoản ACTIVE
-     * 2. BEGIN TRANSACTION
-     * 3. UPDATE balance = balance + amount
-     * 4. Ghi transaction_history
-     * 5. COMMIT
-     */
     public Account deposit(DepositRequest request) {
-
-        // =========================
-        // VALIDATE INPUT
-        // =========================
         if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
-
-        // =========================
-        // LẤY THÔNG TIN
-        // =========================
         String branchId = request.getBranchId();
 
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
 
         PlatformTransactionManager txManager = siteRouter.getTransactionManager(branchId);
-
-        // =========================
-        // KIỂM TRA TÀI KHOẢN ACTIVE
-        // =========================
         checkAccountActive(jdbc, request.getAccountId());
 
-        // =========================
-        // BEGIN TRANSACTION
-        // =========================
         TransactionStatus txStatus = txManager.getTransaction(new DefaultTransactionDefinition());
 
         try {
 
             System.out.println();
-            System.out.println("══════════════════════════════════════");
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
             System.out.println("DEPOSIT TRANSACTION");
-            System.out.println("══════════════════════════════════════");
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
-            // =========================
-            // 1. BALANCE BAN ĐẦU
-            // =========================
             BigDecimal beforeBalance = jdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ?",
                     BigDecimal.class,
@@ -227,17 +165,11 @@ public class AccountService {
             System.out.println("BEFORE DEPOSIT");
             System.out.println("Balance = " + beforeBalance);
 
-            // =========================
-            // 2. UPDATE BALANCE
-            // =========================
             jdbc.update(
                     "UPDATE account SET balance = balance + ? WHERE account_id = ?",
                     request.getAmount(),
                     request.getAccountId());
 
-            // =========================
-            // 3. BALANCE SAU UPDATE
-            // =========================
             BigDecimal afterUpdateBalance = jdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ?",
                     BigDecimal.class,
@@ -248,9 +180,6 @@ public class AccountService {
             System.out.println("Deposit Amount = " + request.getAmount());
             System.out.println("Balance = " + afterUpdateBalance);
 
-            // =========================
-            // 4. GHI TRANSACTION HISTORY
-            // =========================
             jdbc.update(
                     "INSERT INTO transaction_history "
                             + "(transaction_type, amount, account_id, balance_after, status, description) "
@@ -259,36 +188,19 @@ public class AccountService {
                     request.getAccountId(),
                     afterUpdateBalance);
 
-            System.out.println();
-            System.out.println("TRANSACTION HISTORY INSERTED");
-
-            // ==================================================
-            // TEST SERVER CRASH
-            // ==================================================
-            // BẬT ĐOẠN NÀY ĐỂ TEST ROLLBACK
-            // TẮT ĐI ĐỂ CHẠY BÌNH THƯỜNG
-            // ==================================================
-
-            /*
-             * System.out.println();
-             * System.out.println("💥 SERVER CRASH BEFORE COMMIT!");
-             * 
-             * Thread.sleep(3000);
-             * 
-             * throw new RuntimeException("SERVER CRASH");
-             */
-
-            // =========================
-            // 5. COMMIT
-            // =========================
+            // if (true) {
+            // System.out.println();
+            // System.out.println("TRANSACTION HISTORY INSERTED");
+            // System.out.println();
+            // System.out.println("SERVER CRASH BEFORE COMMIT!");
+            // Thread.sleep(3000);
+            // throw new RuntimeException("SERVER CRASH");
+            // }
             txManager.commit(txStatus);
 
             System.out.println();
             System.out.println("COMMIT SUCCESS");
 
-            // =========================
-            // 6. BALANCE SAU COMMIT
-            // =========================
             BigDecimal finalBalance = jdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ?",
                     BigDecimal.class,
@@ -305,17 +217,11 @@ public class AccountService {
 
         } catch (Exception e) {
 
-            // =========================
-            // ROLLBACK
-            // =========================
             txManager.rollback(txStatus);
 
             System.out.println();
             System.out.println("ROLLBACK TRANSACTION");
 
-            // =========================
-            // BALANCE SAU ROLLBACK
-            // =========================
             BigDecimal rollbackBalance = jdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ?",
                     BigDecimal.class,
@@ -332,25 +238,7 @@ public class AccountService {
         }
     }
 
-    // ============================================================
-    // RÚT TIỀN (Withdraw) — Giao dịch LOCAL + Pessimistic Lock
-    // ============================================================
-
-    /**
-     * Rút tiền từ tài khoản (single thread).
-     * Sử dụng SELECT FOR UPDATE (pessimistic locking) để tránh Lost Update.
-     *
-     * Flow:
-     * 1. Kiểm tra tài khoản ACTIVE
-     * 2. BEGIN TRANSACTION
-     * 3. SELECT balance FROM account WHERE id=? FOR UPDATE ← LOCK row
-     * 4. Kiểm tra balance >= amount
-     * 5. UPDATE balance = balance - amount
-     * 6. Ghi transaction_history
-     * 7. COMMIT → release lock
-     */
     public Account withdraw(WithdrawRequest request) {
-        // Validate
         if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
@@ -358,15 +246,12 @@ public class AccountService {
         String branchId = request.getBranchId();
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
 
-        // ⭐ Kiểm tra tài khoản ACTIVE trước khi giao dịch
         checkAccountActive(jdbc, request.getAccountId());
 
         PlatformTransactionManager txManager = siteRouter.getTransactionManager(branchId);
         TransactionStatus txStatus = txManager.getTransaction(new DefaultTransactionDefinition());
 
         try {
-            // ⭐ PESSIMISTIC LOCK: SELECT FOR UPDATE
-            // Lock row này → thread khác phải đợi đến khi COMMIT
             BigDecimal currentBalance = jdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ? FOR UPDATE",
                     BigDecimal.class, request.getAccountId());
@@ -376,21 +261,18 @@ public class AccountService {
                         "Account " + request.getAccountId() + " not found");
             }
 
-            // Kiểm tra đủ tiền
             if (currentBalance.compareTo(request.getAmount()) < 0) {
                 throw new InsufficientBalanceException(
                         "Insufficient balance. Current: " + currentBalance +
                                 ", Requested: " + request.getAmount());
             }
 
-            // Trừ tiền
             jdbc.update(
                     "UPDATE account SET balance = balance - ? WHERE account_id = ?",
                     request.getAmount(), request.getAccountId());
 
             BigDecimal newBalance = currentBalance.subtract(request.getAmount());
 
-            // Ghi lịch sử
             jdbc.update(
                     "INSERT INTO transaction_history (transaction_type, amount, account_id, balance_after, status, description) "
                             +
@@ -399,7 +281,7 @@ public class AccountService {
 
             txManager.commit(txStatus);
 
-            System.out.println("✅ [WITHDRAW] Account " + request.getAccountId() +
+            System.out.println("[WITHDRAW] Account " + request.getAccountId() +
                     " at " + branchId + ": -" + request.getAmount() +
                     " → Balance = " + newBalance);
 
@@ -414,25 +296,6 @@ public class AccountService {
         }
     }
 
-    // ============================================================
-    // RÚT TIỀN 2 THREAD — CÓ LOCK hoặc KHÔNG LOCK
-    // ============================================================
-
-    /**
-     * Rút tiền bằng 2 thread đồng thời, mỗi thread rút số tiền RIÊNG do user nhập.
-     *
-     * useLock = true → SELECT FOR UPDATE (pessimistic lock)
-     * → Thread 1 lock row, rút xong, COMMIT → Thread 2 mới được lock
-     * → Thread 2 thấy balance đã giảm → nếu không đủ tiền → FAIL
-     * → Kết quả ĐÚNG: không bị Lost Update
-     *
-     * useLock = false → SELECT bình thường (KHÔNG lock)
-     * → Cả 2 thread đọc CÙNG balance → cả 2 thấy đủ tiền → cả 2 rút
-     * → Kết quả SAI: balance bị âm (Lost Update)
-     *
-     * Luôn kiểm tra balance >= amount trước khi rút (nhưng không lock thì check bị
-     * vô hiệu).
-     */
     public ConcurrentWithdrawResponse concurrentWithdraw(WithdrawRequest request) {
 
         String branchId = request.getBranchId();
@@ -445,9 +308,6 @@ public class AccountService {
 
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
 
-        // =========================
-        // KIỂM TRA DỮ LIỆU ĐẦU VÀO
-        // =========================
         if (amountThread1 == null || amountThread1.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Số tiền Thread 1 phải lớn hơn 0");
         }
@@ -464,9 +324,6 @@ public class AccountService {
 
         ConcurrentWithdrawResponse response = new ConcurrentWithdrawResponse();
 
-        // =========================
-        // LẤY SỐ DƯ BAN ĐẦU
-        // =========================
         BigDecimal initialBalance = jdbc.queryForObject(
                 "SELECT balance FROM account WHERE account_id = ?",
                 BigDecimal.class,
@@ -482,9 +339,6 @@ public class AccountService {
             mode = "KHÔNG LOCK";
         }
 
-        // =========================
-        // IN THÔNG TIN BAN ĐẦU
-        // =========================
         System.out.println();
 
         System.out.println("==========================================");
@@ -507,17 +361,13 @@ public class AccountService {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
 
-        // Cho 2 thread chạy cùng lúc
         CountDownLatch startLatch = new CountDownLatch(1);
 
-        // Đợi cả 2 thread đọc xong mới update
         CyclicBarrier readBarrier = new CyclicBarrier(2);
 
         List<Future<String>> futures = new ArrayList<>();
 
-        // =========================
-        // THREAD 1
-        // =========================
+        // T1
         futures.add(executor.submit(() -> {
 
             logs.add("[T1] ĐÃ SẴN SÀNG");
@@ -545,9 +395,7 @@ public class AccountService {
             }
         }));
 
-        // =========================
-        // THREAD 2
-        // =========================
+        // T2
         futures.add(executor.submit(() -> {
 
             logs.add("[T2] ĐÃ SẴN SÀNG");
@@ -575,15 +423,11 @@ public class AccountService {
             }
         }));
 
-        // Cho cả 2 thread bắt đầu chạy
         startLatch.countDown();
 
         String resultThread1 = "TIMEOUT";
         String resultThread2 = "TIMEOUT";
 
-        // =========================
-        // LẤY KẾT QUẢ THREAD 1
-        // =========================
         try {
 
             resultThread1 = futures.get(0).get(15, TimeUnit.SECONDS);
@@ -593,9 +437,6 @@ public class AccountService {
             logs.add("[T1] ERROR: " + e.getMessage());
         }
 
-        // =========================
-        // LẤY KẾT QUẢ THREAD 2
-        // =========================
         try {
 
             resultThread2 = futures.get(1).get(15, TimeUnit.SECONDS);
@@ -607,17 +448,11 @@ public class AccountService {
 
         executor.shutdown();
 
-        // =========================
-        // LẤY SỐ DƯ CUỐI
-        // =========================
         BigDecimal finalBalance = jdbc.queryForObject(
                 "SELECT balance FROM account WHERE account_id = ?",
                 BigDecimal.class,
                 accountId);
 
-        // =========================
-        // TÍNH SỐ DƯ ĐÚNG
-        // =========================
         BigDecimal expectedBalance = initialBalance;
 
         if (resultThread1.equals("SUCCESS")) {
@@ -628,19 +463,13 @@ public class AccountService {
             expectedBalance = expectedBalance.subtract(amountThread2);
         }
 
-        // =========================
-        // KIỂM TRA LOST UPDATE
-        // =========================
         boolean lostUpdate = false;
 
         if (finalBalance.compareTo(expectedBalance) != 0) {
             lostUpdate = true;
         }
 
-        // =========================
-        // GHI LOG KẾT QUẢ
-        // =========================
-        logs.add("================================");
+        logs.add(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         logs.add("Số dư mong đợi = " + expectedBalance);
         logs.add("Số dư thực tế  = " + finalBalance);
 
@@ -659,9 +488,6 @@ public class AccountService {
             logs.add("Dữ liệu chính xác");
         }
 
-        // =========================
-        // IN KẾT QUẢ RA CONSOLE
-        // =========================
         System.out.println("------------------------------------------");
 
         System.out.println("Số dư mong đợi : " + expectedBalance);
@@ -680,9 +506,6 @@ public class AccountService {
 
         System.out.println();
 
-        // =========================
-        // BUILD RESPONSE
-        // =========================
         response.setAccount(
                 getAccountById(accountId, branchId));
 
@@ -701,14 +524,6 @@ public class AccountService {
         return response;
     }
 
-    /**
-     * Rút tiền CÓ LOCK (SELECT FOR UPDATE) — trong 1 thread.
-     * Thread phải đợi lock → đọc balance đúng → check đúng → kết quả đúng.
-     */
-    /**
-     * Rút tiền CÓ LOCK (SELECT FOR UPDATE)
-     * Thread phải chờ lock rồi mới được đọc dữ liệu.
-     */
     private String withdrawWithLock(
             String branchId,
             Long accountId,
@@ -730,7 +545,6 @@ public class AccountService {
 
             System.out.println(tag + " Đang chờ lock...");
 
-            // LOCK DỮ LIỆU BẰNG SELECT FOR UPDATE
             BigDecimal balance = threadJdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ? FOR UPDATE",
                     BigDecimal.class,
@@ -742,7 +556,6 @@ public class AccountService {
             System.out.println(tag + " Đã lock thành công");
             System.out.println(tag + " Balance hiện tại = " + balance);
 
-            // Kiểm tra đủ tiền không
             if (balance.compareTo(amount) < 0) {
 
                 txManager.rollback(txStatus);
@@ -756,7 +569,6 @@ public class AccountService {
                 return "FAILED";
             }
 
-            // Trừ tiền
             threadJdbc.update(
                     "UPDATE account SET balance = balance - ? WHERE account_id = ?",
                     amount,
@@ -764,7 +576,6 @@ public class AccountService {
 
             BigDecimal newBalance = balance.subtract(amount);
 
-            // Ghi lịch sử giao dịch
             threadJdbc.update(
                     "INSERT INTO transaction_history " +
                             "(transaction_type, amount, account_id, balance_after, status, description) " +
@@ -802,20 +613,6 @@ public class AccountService {
         }
     }
 
-    /**
-     * Rút tiền KHÔNG LOCK — trong 1 thread.
-     *
-     * CẢ 2 THREAD ĐỌC BALANCE ĐỒNG THỜI → cùng thấy balance ban đầu →
-     * cả 2 pass check balance >= amount → cả 2 UPDATE →
-     * Thread sau ghi đè thread trước → Lost Update → balance SAI (bị âm).
-     *
-     * Dùng readBarrier để đảm bảo cả 2 thread ĐỌC XONG rồi mới WRITE.
-     */
-    /**
-     * Rút tiền KHÔNG LOCK
-     *
-     * Cả 2 thread đọc cùng lúc nên có thể xảy ra LOST UPDATE.
-     */
     private String withdrawWithoutLock(
             String branchId,
             Long accountId,
@@ -834,7 +631,6 @@ public class AccountService {
 
             System.out.println(tag + " Đọc balance KHÔNG LOCK");
 
-            // KHÔNG DÙNG FOR UPDATE
             BigDecimal balance = threadJdbc.queryForObject(
                     "SELECT balance FROM account WHERE account_id = ?",
                     BigDecimal.class,
@@ -844,10 +640,8 @@ public class AccountService {
 
             System.out.println(tag + " Balance đọc được = " + balance);
 
-            // Đợi cả 2 thread đọc xong
             readBarrier.await(5, TimeUnit.SECONDS);
 
-            // Kiểm tra số dư
             if (balance.compareTo(amount) < 0) {
 
                 String msg = tag + " THẤT BẠI - Không đủ tiền";
@@ -859,25 +653,12 @@ public class AccountService {
                 return "FAILED";
             }
 
-            /*
-             * LOST UPDATE:
-             *
-             * Thread 1 đọc balance = 1,000,000
-             * Thread 2 cũng đọc balance = 1,000,000
-             *
-             * Cả 2 cùng tính toán balance mới.
-             *
-             * Thread ghi sau sẽ ghi đè thread ghi trước.
-             */
-
             BigDecimal newBalance = balance.subtract(amount);
 
             threadJdbc.update(
                     "UPDATE account SET balance = ? WHERE account_id = ?",
                     newBalance,
                     accountId);
-
-            // Ghi lịch sử
             threadJdbc.update(
                     "INSERT INTO transaction_history " +
                             "(transaction_type, amount, account_id, balance_after, status, description) " +
@@ -912,11 +693,7 @@ public class AccountService {
             return "ERROR";
         }
     }
-    // ============================================================
-    // LỊCH SỬ GIAO DỊCH
-    // ============================================================
 
-    /** Lấy lịch sử giao dịch của 1 tài khoản */
     public List<TransactionHistory> getTransactionHistory(Long accountId, String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         return jdbc.query(
@@ -924,7 +701,6 @@ public class AccountService {
                 txnRowMapper, accountId);
     }
 
-    /** Đổi trạng thái tài khoản */
     public Account updateAccountStatus(Long accountId, String branchId, String status) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         jdbc.update("UPDATE account SET status = ? WHERE account_id = ?", status, accountId);

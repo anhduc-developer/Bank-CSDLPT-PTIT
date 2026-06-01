@@ -9,11 +9,6 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
-
-/**
- * Cấu hình DataSource cho SITE 3: Chi nhánh TP.HCM.
- * Kết nối MySQL TP.HCM trên port 3309.
- */
 @Configuration
 public class HcmDataSourceConfig {
 

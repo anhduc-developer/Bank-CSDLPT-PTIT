@@ -148,8 +148,8 @@ export default function DeadlockDemo() {
 
       <div className="page-header">
         <h2>
-          <ThunderboltOutlined style={{ color: "#faad14", marginRight: 8 }} />
-          Demo Deadlock
+          <div style={{ color: "#faad14", marginRight: 8 }} />
+          DEADLOCK
         </h2>
         <p>
           Mô phỏng deadlock khi 2 giao dịch chuyển tiền ngược chiều xảy ra đồng
@@ -165,7 +165,7 @@ export default function DeadlockDemo() {
           <Card
             title={
               <span>
-                <LockOutlined style={{ marginRight: 8 }} />
+                <div style={{ marginRight: 8 }} />
                 Thiết lập Demo
               </span>
             }
@@ -174,29 +174,7 @@ export default function DeadlockDemo() {
               marginBottom: 24,
             }}
           >
-            <Alert
-              message="Cách hoạt động"
-              description={
-                <div style={{ fontSize: 13 }}>
-                  <p style={{ margin: "0 0 8px 0" }}>
-                    <strong>Thread-1:</strong> Lock Account A → cố lock Account B
-                  </p>
-                  <p style={{ margin: "0 0 8px 0" }}>
-                    <strong>Thread-2:</strong> Lock Account B → cố lock Account A
-                  </p>
-                  <p style={{ margin: 0, color: "#ff4d4f" }}>
-                    <strong>→ Cả 2 chờ nhau = DEADLOCK!</strong>
-                  </p>
-                  <p style={{ margin: "8px 0 0", color: "#8c8c8c" }}>
-                    MySQL phát hiện deadlock → rollback 1 transaction (victim),
-                    transaction còn lại thành công (winner).
-                  </p>
-                </div>
-              }
-              type="warning"
-              showIcon
-              style={{ marginBottom: 20 }}
-            />
+
 
             <Form form={form} layout="vertical" onFinish={handleSubmit}>
               <Form.Item
@@ -249,7 +227,7 @@ export default function DeadlockDemo() {
                     name="amountAtoB"
                     label={
                       <span>
-                        <span style={{ color: COLORS.thread1 }}>Thread-1</span>{" "}
+                        <span style={{ color: COLORS.thread1 }}>T1</span>{" "}
                         (A→B)
                       </span>
                     }
@@ -271,7 +249,7 @@ export default function DeadlockDemo() {
                     name="amountBtoA"
                     label={
                       <span>
-                        <span style={{ color: COLORS.thread2 }}>Thread-2</span>{" "}
+                        <span style={{ color: COLORS.thread2 }}>T2</span>{" "}
                         (B→A)
                       </span>
                     }
@@ -304,127 +282,10 @@ export default function DeadlockDemo() {
                   fontWeight: 600,
                 }}
               >
-                {loading ? "Đang chạy demo..." : "Bắt đầu Demo Deadlock"}
+                {loading ? "Đang chạy demo..." : "RUN"}
               </Button>
             </Form>
 
-            {/* Diagram minh họa */}
-            <div
-              style={{
-                marginTop: 24,
-                padding: 20,
-                background: COLORS.bg,
-                borderRadius: 12,
-                border: `1px solid ${COLORS.border}`,
-              }}
-            >
-              <div
-                style={{
-                  textAlign: "center",
-                  marginBottom: 16,
-                  color: COLORS.textMuted,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
-                Sơ đồ Deadlock
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  position: "relative",
-                }}
-              >
-                {/* Account A */}
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `2px solid ${COLORS.thread1}`,
-                    background: `${COLORS.thread1}15`,
-                    minWidth: 90,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: COLORS.thread1,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Account A
-                  </div>
-                  <div style={{ color: COLORS.textMuted, fontSize: 11 }}>
-                    [Locked] Thread-1
-                  </div>
-                </div>
-
-                {/* Arrows */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: COLORS.thread1,
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    T1: chờ lock →
-                  </div>
-                  <div style={{ color: COLORS.deadlock, fontSize: 14, fontWeight: "bold" }}>
-                    DEADLOCK
-                  </div>
-                  <div
-                    style={{
-                      color: COLORS.thread2,
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    ← T2: chờ lock
-                  </div>
-                </div>
-
-                {/* Account B */}
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `2px solid ${COLORS.thread2}`,
-                    background: `${COLORS.thread2}15`,
-                    minWidth: 90,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: COLORS.thread2,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Account B
-                  </div>
-                  <div style={{ color: COLORS.textMuted, fontSize: 11 }}>
-                    [Locked] Thread-2
-                  </div>
-                </div>
-              </div>
-            </div>
           </Card>
         </Col>
 

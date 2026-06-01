@@ -19,23 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Service: Chuyển tiền — bao gồm LOCAL transfer và DISTRIBUTED transfer (2PC).
- *
- * ĐÂY LÀ SERVICE QUAN TRỌNG NHẤT CỦA ĐỒ ÁN!
- *
- * 2 loại chuyển tiền:
- * 1. Internal Transfer: cùng chi nhánh → 1 site → 1 database transaction
- * 2. Inter-Branch Transfer: khác chi nhánh → 2 site → 2-Phase Commit
- *
- * Inter-Branch Transfer Flow (2PC):
- * PHASE 1 (PREPARE):
- * - Source site: lock account + debit (trừ tiền)
- * - Dest site: lock account + credit (cộng tiền)
- * PHASE 2 (COMMIT / ABORT):
- * - Nếu cả 2 thành công → COMMIT cả 2
- * - Nếu bất kỳ lỗi → ROLLBACK (compensation)
- */
 @Service
 public class TransferService {
 
@@ -48,7 +31,7 @@ public class TransferService {
         }
 
         // check active
-        private void checkAccountActive(JdbcTemplate jdbc, Long accountId, String label) {
+        public void checkAccountActive(JdbcTemplate jdbc, Long accountId, String label) {
                 String status = jdbc.queryForObject(
                                 "SELECT status FROM account WHERE account_id = ?",
                                 String.class, accountId);
@@ -84,9 +67,9 @@ public class TransferService {
 
                 try {
 
-                        System.out.println("==========================================");
+                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                         System.out.println("CHUYỂN TIỀN NỘI BỘ");
-                        System.out.println("==========================================");
+                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
                         System.out.println("Chi nhánh      : " + branchId);
 
@@ -99,10 +82,6 @@ public class TransferService {
                         System.out.println("Số tiền chuyển : " +
                                         request.getAmount() + " VND");
 
-                        // =========================
-                        // LOCK 2 TÀI KHOẢN
-                        // LOCK THEO THỨ TỰ ID ĐỂ TRÁNH DEADLOCK
-                        // =========================
                         Long firstId = Math.min(
                                         request.getFromAccountId(),
                                         request.getToAccountId());
@@ -121,17 +100,10 @@ public class TransferService {
                                         BigDecimal.class,
                                         secondId);
 
-                        // =========================
-                        // LẤY SỐ DƯ TÀI KHOẢN GỬI
-                        // =========================
                         BigDecimal fromBalance = jdbc.queryForObject(
                                         "SELECT balance FROM account WHERE account_id = ? FOR UPDATE",
                                         BigDecimal.class,
                                         request.getFromAccountId());
-
-                        // =========================
-                        // KIỂM TRA 2 TÀI KHOẢN ACTIVE
-                        // =========================
                         checkAccountActive(
                                         jdbc,
                                         request.getFromAccountId(),
@@ -142,9 +114,6 @@ public class TransferService {
                                         request.getToAccountId(),
                                         "Dest");
 
-                        // =========================
-                        // KIỂM TRA ĐỦ TIỀN KHÔNG
-                        // =========================
                         if (fromBalance.compareTo(request.getAmount()) < 0) {
 
                                 throw new InsufficientBalanceException(
@@ -154,9 +123,6 @@ public class TransferService {
                                                                 request.getAmount());
                         }
 
-                        // =========================
-                        // TRỪ TIỀN TÀI KHOẢN GỬI
-                        // =========================
                         jdbc.update(
                                         "UPDATE account SET balance = balance - ? WHERE account_id = ?",
                                         request.getAmount(),
@@ -164,9 +130,6 @@ public class TransferService {
 
                         BigDecimal newFromBalance = fromBalance.subtract(request.getAmount());
 
-                        // =========================
-                        // CỘNG TIỀN TÀI KHOẢN NHẬN
-                        // =========================
                         jdbc.update(
                                         "UPDATE account SET balance = balance + ? WHERE account_id = ?",
                                         request.getAmount(),
@@ -177,9 +140,6 @@ public class TransferService {
                                         BigDecimal.class,
                                         request.getToAccountId());
 
-                        // =========================
-                        // GHI LỊCH SỬ GIAO DỊCH
-                        // =========================
                         jdbc.update(
                                         "INSERT INTO transaction_history " +
                                                         "(transaction_type, amount, account_id, related_account_id, balance_after, status, description) "
@@ -202,12 +162,9 @@ public class TransferService {
                                         request.getFromAccountId(),
                                         newToBalance);
 
-                        // =========================
-                        // COMMIT TRANSACTION
-                        // =========================
                         txManager.commit(txStatus);
 
-                        System.out.println("------------------------------------------");
+                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
                         System.out.println("CHUYỂN TIỀN THÀNH CÔNG");
 
@@ -217,11 +174,8 @@ public class TransferService {
                         System.out.println("Số dư tài khoản nhận : " +
                                         newToBalance);
 
-                        System.out.println("==========================================");
+                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
-                        // =========================
-                        // BUILD RESPONSE
-                        // =========================
                         TransferResultResponse response = new TransferResultResponse();
 
                         response.setStatus("SUCCESS");
@@ -262,72 +216,45 @@ public class TransferService {
                                         e);
                 }
         }
-        // ============================================================
-        // CHUYỂN TIỀN KHÁC CHI NHÁNH (Inter-Branch Transfer)
-        // ⭐ GIAO DỊCH PHÂN TÁN — 2-PHASE COMMIT ⭐
-        // ============================================================
 
-        /**
-         * Chuyển tiền liên chi nhánh sử dụng 2-Phase Commit.
-         *
-         * PHASE 1 — PREPARE:
-         * Bước 1: Source site — Lock account + debit (trừ tiền)
-         * Bước 2: Dest site — Lock account + credit (cộng tiền)
-         *
-         * PHASE 2 — DECISION:
-         * Nếu cả 2 bước thành công → COMMIT cả 2 transaction
-         * Nếu bất kỳ bước nào lỗi → ROLLBACK (compensation)
-         */
+        // PHASE 1 - PREPARE:
+        // B1: Source site => Lock account + trừ tiền
+        // B2: Destination site => Lock account + cộng tiền
+
+        // PHASE 2 - DECISION:
+        // Nếu cả 2 bước thành công → COMMIT cả 2 transaction
+        // Nếu bất kỳ bước nào lỗi → ROLLBACK (compensation)
         public TransferResultResponse interBranchTransfer(
                         InterBranchTransferRequest request) {
-
-                // =========================
-                // KIỂM TRA DỮ LIỆU ĐẦU VÀO
-                // =========================
                 if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
                         throw new IllegalArgumentException("Số tiền phải lớn hơn 0");
                 }
-
                 if (request.getFromBranch().equalsIgnoreCase(request.getToBranch())) {
                         throw new IllegalArgumentException(
                                         "Cùng chi nhánh thì dùng internal transfer");
                 }
-
                 String txnId = "TXN-" + System.currentTimeMillis();
-
                 String sourceBranch = request.getFromBranch().toUpperCase();
-
                 String destBranch = request.getToBranch().toUpperCase();
-
-                // =========================
-                // TẠO LOGS CHO FRONTEND
-                // =========================
                 List<String> logs = Collections.synchronizedList(new ArrayList<>());
-
                 System.out.println("==========================================");
                 System.out.println("GIAO DỊCH 2PC LIÊN CHI NHÁNH");
                 System.out.println("==========================================");
-
                 System.out.println("Transaction ID : " + txnId);
                 System.out.println("Từ chi nhánh   : " + sourceBranch);
                 System.out.println("Đến chi nhánh  : " + destBranch);
                 System.out.println("Số tiền        : " + request.getAmount());
-
                 System.out.println("==========================================");
-
                 logs.add("BẮT ĐẦU GIAO DỊCH 2PC");
                 logs.add("Transaction ID: " + txnId);
                 logs.add(sourceBranch + " → " + destBranch);
                 logs.add("Số tiền: " + request.getAmount());
-
                 TransferResultResponse response = new TransferResultResponse();
-
                 // Lưu reference để dùng trong catch block
                 BigDecimal[] balanceTracker = new BigDecimal[3];
                 // [0] = sourceBalanceBefore
                 // [1] = destBalanceBefore
                 // [2] = sourceBalanceAfterDebit
-
                 response.setTransactionId(txnId);
 
                 JdbcTemplate sourceJdbc = siteRouter.getJdbcTemplate(sourceBranch);
@@ -335,21 +262,14 @@ public class TransferService {
                 JdbcTemplate destJdbc = siteRouter.getJdbcTemplate(destBranch);
 
                 PlatformTransactionManager sourceTxManager = siteRouter.getTransactionManager(sourceBranch);
-
                 PlatformTransactionManager destTxManager = siteRouter.getTransactionManager(destBranch);
-
                 TransactionStatus sourceTx = sourceTxManager.getTransaction(
                                 new DefaultTransactionDefinition());
 
                 TransactionStatus destTx = destTxManager.getTransaction(
                                 new DefaultTransactionDefinition());
-
                 try {
-
-                        // =====================================================
                         // PHASE 1 — PREPARE
-                        // =====================================================
-
                         logs.add("PHASE 1: PREPARE");
 
                         txnLogger.createTransactionLog(
@@ -367,9 +287,7 @@ public class TransferService {
                         // Ghi participant: DESTINATION đang PREPARING
                         txnLogger.addParticipant(txnId, sourceBranch, destBranch, "DESTINATION", "PREPARING", "CREDIT");
 
-                        // =========================
                         // STEP 1: ĐỌC SỐ DƯ BAN ĐẦU
-                        // =========================
                         logs.add("STEP 1: ĐỌC SỐ DƯ BAN ĐẦU");
 
                         // LOCK SOURCE
@@ -439,18 +357,12 @@ public class TransferService {
                         balanceTracker[0] = sourceBalance;
                         balanceTracker[1] = destBalance;
 
-                        // =========================
-                        // KIỂM TRA ĐỦ TIỀN KHÔNG
-                        // =========================
                         if (sourceBalance.compareTo(request.getAmount()) < 0) {
-
                                 throw new InsufficientBalanceException(
                                                 "Không đủ số dư");
                         }
 
-                        // =========================
                         // STEP 2: SOURCE TRỪ TIỀN
-                        // =========================
                         logs.add("STEP 2: SOURCE TRỪ TIỀN");
 
                         BigDecimal sourceAfter = sourceBalance.subtract(request.getAmount());
@@ -495,9 +407,7 @@ public class TransferService {
                         // Cập nhật participant: SOURCE đã PREPARED
                         txnLogger.updateParticipantStatus(txnId, sourceBranch, sourceBranch, "PREPARED");
 
-                        // =========================
                         // GIẢ LẬP DESTINATION SERVER CRASH
-                        // =========================
                         if (request.isSimulateCrash()) {
 
                                 System.out.println();
@@ -523,9 +433,7 @@ public class TransferService {
                                                                 " server bị crash");
                         }
 
-                        // =========================
                         // STEP 3: DEST CỘNG TIỀN
-                        // =========================
                         logs.add("STEP 3: DEST CỘNG TIỀN");
 
                         BigDecimal destAfter = destBalance.add(request.getAmount());
@@ -576,9 +484,7 @@ public class TransferService {
                         logs.add("TẤT CẢ SITE ĐÃ PREPARE THÀNH CÔNG");
                         logs.add("PHASE 2: COMMIT");
 
-                        // =====================================================
                         // PHASE 2 — COMMIT
-                        // =====================================================
 
                         // HISTORY SOURCE
                         sourceJdbc.update(
@@ -640,9 +546,7 @@ public class TransferService {
                                         "COMMITTED",
                                         null);
 
-                        // =========================
                         // STEP 4: SỐ DƯ SAU COMMIT
-                        // =========================
                         logs.add("STEP 4: SỐ DƯ SAU COMMIT");
 
                         System.out.println();
@@ -674,9 +578,7 @@ public class TransferService {
                                                         " balance cuối = " +
                                                         destAfter);
 
-                        System.out.println("==========================================");
-                        System.out.println("TRANSACTION COMMITTED");
-                        System.out.println("==========================================");
+                        System.out.println(">>>>>>>>>>> TRANSACTION COMMITTED");
 
                         logs.add("TRANSACTION COMMITTED");
 
@@ -730,9 +632,7 @@ public class TransferService {
 
                         logs.add("ABORT TRANSACTION");
 
-                        // =========================
                         // ROLLBACK SOURCE
-                        // =========================
                         try {
 
                                 if (!sourceTx.isCompleted()) {
@@ -752,9 +652,7 @@ public class TransferService {
                         } catch (Exception ignored) {
                         }
 
-                        // =========================
                         // ROLLBACK DEST
-                        // =========================
                         try {
 
                                 if (!destTx.isCompleted()) {
@@ -774,9 +672,7 @@ public class TransferService {
                         } catch (Exception ignored) {
                         }
 
-                        // =========================
                         // UPDATE TRANSACTION LOG
-                        // =========================
                         try {
 
                                 txnLogger.updateTransactionStatus(
@@ -788,9 +684,7 @@ public class TransferService {
                         } catch (Exception ignored) {
                         }
 
-                        // =========================
                         // SỐ DƯ SAU ROLLBACK
-                        // =========================
                         logs.add("SỐ DƯ SAU ROLLBACK");
 
                         System.out.println();
@@ -854,10 +748,8 @@ public class TransferService {
                                                                 ": không thể đọc dữ liệu");
                         }
 
-                        // =========================
                         // GHI LỊCH SỬ GIAO DỊCH THẤT BẠI
                         // (dùng transaction mới, độc lập với rollback)
-                        // =========================
                         try {
                                 sourceJdbc.update(
                                                 "INSERT INTO transaction_history " +
@@ -912,9 +804,6 @@ public class TransferService {
 
                         logs.add("TRANSACTION ABORTED");
 
-                        // =========================
-                        // BUILD FAILED RESPONSE
-                        // =========================
                         response.setStatus("FAILED");
 
                         response.setTransactionId(txnId);

@@ -721,7 +721,7 @@ export default function Transfers() {
                   }
                 />
               </Form.Item>
-
+              <div style={{ height: 74, marginBottom: 16, }} />
               <Button
                 type="primary"
                 htmlType="submit"
@@ -741,7 +741,7 @@ export default function Transfers() {
         ========================= */}
         <Col xs={24} lg={12}>
           <Card
-            title="Chuyển liên chi nhánh (2PC)"
+            title="Chuyển liên chi nhánh"
             style={{
               borderTop: "3px solid #722ed1",
               marginBottom: 24,
@@ -875,7 +875,7 @@ export default function Transfers() {
                     }}
                   >
                     {simulateCrash
-                      ? "DEST SERVER CRASH"
+                      ? "SERVER CRASH"
                       : "HOẠT ĐỘNG BÌNH THƯỜNG"}
                   </Text>
 
@@ -883,7 +883,7 @@ export default function Transfers() {
 
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     {simulateCrash
-                      ? "Source trừ tiền → Dest crash → Rollback"
+                      ? "Source trừ tiền => Dest crash => Rollback"
                       : "Chuyển tiền bình thường bằng 2PC"}
                   </Text>
                 </div>

@@ -2,22 +2,19 @@ package dev.distributed.bank.dto.response;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Response top khách hàng giàu nhất (Distributed Query).
- * Coordinator query top-K từ mỗi site, merge và sort lại.
- */
 public class TopCustomerResponse {
 
     private Long customerId;
     private String fullName;
     private String branchId;
-    private BigDecimal totalBalance;    // Tổng số dư tất cả tài khoản
-    private int accountCount;           // Số tài khoản
+    private BigDecimal totalBalance;
+    private int accountCount;
 
-    public TopCustomerResponse() {}
+    public TopCustomerResponse() {
+    }
 
     public TopCustomerResponse(Long customerId, String fullName, String branchId,
-                                BigDecimal totalBalance, int accountCount) {
+            BigDecimal totalBalance, int accountCount) {
         this.customerId = customerId;
         this.fullName = fullName;
         this.branchId = branchId;
@@ -25,20 +22,43 @@ public class TopCustomerResponse {
         this.accountCount = accountCount;
     }
 
-    // Getters & Setters
+    public Long getCustomerId() {
+        return customerId;
+    }
 
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
+    }
 
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getFullName() {
+        return fullName;
+    }
 
-    public String getBranchId() { return branchId; }
-    public void setBranchId(String branchId) { this.branchId = branchId; }
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
 
-    public BigDecimal getTotalBalance() { return totalBalance; }
-    public void setTotalBalance(BigDecimal totalBalance) { this.totalBalance = totalBalance; }
+    public String getBranchId() {
+        return branchId;
+    }
 
-    public int getAccountCount() { return accountCount; }
-    public void setAccountCount(int accountCount) { this.accountCount = accountCount; }
+    public void setBranchId(String branchId) {
+        this.branchId = branchId;
+    }
+
+    public BigDecimal getTotalBalance() {
+        return totalBalance;
+    }
+
+    public void setTotalBalance(BigDecimal totalBalance) {
+        this.totalBalance = totalBalance;
+    }
+
+    public int getAccountCount() {
+        return accountCount;
+    }
+
+    public void setAccountCount(int accountCount) {
+        this.accountCount = accountCount;
+    }
 }

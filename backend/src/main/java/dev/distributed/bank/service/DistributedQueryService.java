@@ -14,16 +14,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import dev.distributed.bank.dto.response.TopTransactionCustomerResponse;
 
-/**
- * Service: Distributed Query — Truy vấn phân tán.
- *
- * Tất cả query trong service này là DISTRIBUTED QUERY:
- * - Chạy cùng 1 câu query trên CẢ 3 site
- * - Coordinator (Spring Boot) merge kết quả ở tầng ứng dụng
- *
- * Đây là phần quan trọng cho đồ án CSDL phân tán — thể hiện rõ
- * việc query phải chạy ở NHIỀU site rồi tổng hợp lại.
- */
 @Service
 public class DistributedQueryService {
 
@@ -33,20 +23,14 @@ public class DistributedQueryService {
         this.siteRouter = siteRouter;
     }
 
-    // ============================================================
-    // QUERY 1: Tổng số dư toàn hệ thống
-    // Flow: SUM(balance) ở mỗi site → cộng 3 kết quả
-    // ============================================================
-
     public TotalBalanceResponse getTotalBalance() {
-        System.out.println("═══ [DISTRIBUTED QUERY] Total Balance ═══");
 
         TotalBalanceResponse response = new TotalBalanceResponse();
         BigDecimal systemTotal = BigDecimal.ZERO;
 
-        // Query Site HN
+        // Query Site HN — đọc từ SLAVE
         try {
-            JdbcTemplate hnJdbc = siteRouter.getJdbcTemplate("HN");
+            JdbcTemplate hnJdbc = siteRouter.getSlaveJdbcTemplate("HN");
             BigDecimal hnBalance = hnJdbc.queryForObject(
                     "SELECT COALESCE(SUM(balance), 0) FROM account WHERE status = 'ACTIVE'",
                     BigDecimal.class);
@@ -55,15 +39,15 @@ public class DistributedQueryService {
             response.setHanoiTotalBalance(hnBalance);
             response.setHanoiAccountCount(hnCount);
             systemTotal = systemTotal.add(hnBalance);
-            System.out.println("  Site HN: " + hnBalance + " (" + hnCount + " accounts)");
+            System.out.println("  Site HN (SLAVE): " + hnBalance + " (" + hnCount + " accounts)");
         } catch (Exception e) {
             response.setHanoiTotalBalance(BigDecimal.ZERO);
             System.out.println("  Site HN: UNREACHABLE");
         }
 
-        // Query Site DN
+        // Query Site DN — đọc từ SLAVE
         try {
-            JdbcTemplate dnJdbc = siteRouter.getJdbcTemplate("DN");
+            JdbcTemplate dnJdbc = siteRouter.getSlaveJdbcTemplate("DN");
             BigDecimal dnBalance = dnJdbc.queryForObject(
                     "SELECT COALESCE(SUM(balance), 0) FROM account WHERE status = 'ACTIVE'",
                     BigDecimal.class);
@@ -72,15 +56,15 @@ public class DistributedQueryService {
             response.setDanangTotalBalance(dnBalance);
             response.setDanangAccountCount(dnCount);
             systemTotal = systemTotal.add(dnBalance);
-            System.out.println("  Site DN: " + dnBalance + " (" + dnCount + " accounts)");
+            System.out.println("  Site DN (SLAVE): " + dnBalance + " (" + dnCount + " accounts)");
         } catch (Exception e) {
             response.setDanangTotalBalance(BigDecimal.ZERO);
             System.out.println("  Site DN: UNREACHABLE");
         }
 
-        // Query Site HCM
+        // Query Site HCM — đọc từ SLAVE
         try {
-            JdbcTemplate hcmJdbc = siteRouter.getJdbcTemplate("HCM");
+            JdbcTemplate hcmJdbc = siteRouter.getSlaveJdbcTemplate("HCM");
             BigDecimal hcmBalance = hcmJdbc.queryForObject(
                     "SELECT COALESCE(SUM(balance), 0) FROM account WHERE status = 'ACTIVE'",
                     BigDecimal.class);
@@ -89,51 +73,44 @@ public class DistributedQueryService {
             response.setHcmTotalBalance(hcmBalance);
             response.setHcmAccountCount(hcmCount);
             systemTotal = systemTotal.add(hcmBalance);
-            System.out.println("  Site HCM: " + hcmBalance + " (" + hcmCount + " accounts)");
+            System.out.println("  Site HCM (SLAVE): " + hcmBalance + " (" + hcmCount + " accounts)");
         } catch (Exception e) {
             response.setHcmTotalBalance(BigDecimal.ZERO);
             System.out.println("  Site HCM: UNREACHABLE");
         }
 
         response.setSystemTotalBalance(systemTotal);
-        System.out.println("  TOTAL: " + systemTotal);
-        System.out.println("═══════════════════════════════════════════");
+        System.out.println("TOTAL: " + systemTotal);
 
         return response;
     }
 
-    // ============================================================
-    // QUERY 2: Top N khách hàng giàu nhất
     // Flow: Top-K từ mỗi site → merge → sort → lấy top N
-    // ============================================================
 
     public List<TopCustomerResponse> getTopCustomers(int limit) {
-        System.out.println("═══ [DISTRIBUTED QUERY] Top " + limit + " Customers ═══");
 
         List<TopCustomerResponse> allCustomers = new ArrayList<>();
 
         String sql = "SELECT c.customer_id, c.full_name, c.branch_id, " +
-                     "SUM(a.balance) as total_balance, COUNT(a.account_id) as account_count " +
-                     "FROM customer c JOIN account a ON c.customer_id = a.customer_id " +
-                     "WHERE a.status = 'ACTIVE' " +
-                     "GROUP BY c.customer_id, c.full_name, c.branch_id " +
-                     "ORDER BY total_balance DESC LIMIT ?";
-
+                "SUM(a.balance) as total_balance, COUNT(a.account_id) as account_count " +
+                "FROM customer c JOIN account a ON c.customer_id = a.customer_id " +
+                "WHERE a.status = 'ACTIVE' " +
+                "GROUP BY c.customer_id, c.full_name, c.branch_id " +
+                "ORDER BY total_balance DESC LIMIT ?";
         RowMapper<TopCustomerResponse> mapper = (rs, rowNum) -> new TopCustomerResponse(
                 rs.getLong("customer_id"),
                 rs.getString("full_name"),
                 rs.getString("branch_id"),
                 rs.getBigDecimal("total_balance"),
-                rs.getInt("account_count")
-        );
+                rs.getInt("account_count"));
 
-        // Query mỗi site, lấy top-K local
+        // Query mỗi site SLAVE, lấy top-K local
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
                 List<TopCustomerResponse> localTop = jdbc.query(sql, mapper, limit);
                 allCustomers.addAll(localTop);
-                System.out.println("  Site " + branchId + ": returned " + localTop.size() + " customers");
+                System.out.println("  Site " + branchId + " (SLAVE): returned " + localTop.size() + " customers");
             } catch (Exception e) {
                 System.out.println("  Site " + branchId + ": UNREACHABLE");
             }
@@ -146,44 +123,39 @@ public class DistributedQueryService {
                 .collect(Collectors.toList());
 
         System.out.println("  Merged result: " + result.size() + " customers");
-        System.out.println("═══════════════════════════════════════════");
 
         return result;
     }
 
-    // ============================================================
-    // QUERY: Top N khách hàng gửi tiền nhiều nhất
     // Flow: Top-K từ mỗi site → merge → sort → lấy top N
-    // ============================================================
 
     public List<TopTransactionCustomerResponse> getTopDepositingCustomers(int limit) {
-        System.out.println("═══ [DISTRIBUTED QUERY] Top " + limit + " Depositing Customers ═══");
 
         List<TopTransactionCustomerResponse> allCustomers = new ArrayList<>();
 
         String sql = "SELECT c.customer_id, c.full_name, c.branch_id, " +
-                     "SUM(th.amount) as total_deposit, COUNT(th.transaction_id) as deposit_count " +
-                     "FROM customer c " +
-                     "JOIN account a ON c.customer_id = a.customer_id " +
-                     "JOIN transaction_history th ON a.account_id = th.account_id " +
-                     "WHERE th.transaction_type = 'DEPOSIT' AND th.status = 'SUCCESS' " +
-                     "GROUP BY c.customer_id, c.full_name, c.branch_id " +
-                     "ORDER BY total_deposit DESC LIMIT ?";
+                "SUM(th.amount) as total_deposit, COUNT(th.transaction_id) as deposit_count " +
+                "FROM customer c " +
+                "JOIN account a ON c.customer_id = a.customer_id " +
+                "JOIN transaction_history th ON a.account_id = th.account_id " +
+                "WHERE th.transaction_type = 'DEPOSIT' AND th.status = 'SUCCESS' " +
+                "GROUP BY c.customer_id, c.full_name, c.branch_id " +
+                "ORDER BY total_deposit DESC LIMIT ?";
 
         RowMapper<TopTransactionCustomerResponse> mapper = (rs, rowNum) -> new TopTransactionCustomerResponse(
                 rs.getLong("customer_id"),
                 rs.getString("full_name"),
                 rs.getString("branch_id"),
                 rs.getBigDecimal("total_deposit"),
-                rs.getInt("deposit_count")
-        );
+                rs.getInt("deposit_count"));
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
                 List<TopTransactionCustomerResponse> localTop = jdbc.query(sql, mapper, limit);
                 allCustomers.addAll(localTop);
-                System.out.println("  Site " + branchId + ": returned " + localTop.size() + " depositing customers");
+                System.out.println(
+                        "  Site " + branchId + " (SLAVE): returned " + localTop.size() + " depositing customers");
             } catch (Exception e) {
                 System.out.println("  Site " + branchId + ": UNREACHABLE");
             }
@@ -194,18 +166,14 @@ public class DistributedQueryService {
                 .limit(limit)
                 .collect(Collectors.toList());
 
-        System.out.println("  Merged result: " + result.size() + " depositing customers");
-        System.out.println("═══════════════════════════════════════════");
+        System.out.println("Result: " + result.size() + " depositing customers");
 
         return result;
     }
 
-    // ============================================================
     // QUERY 3: Giao dịch liên chi nhánh gần đây
-    // ============================================================
 
     public List<TransactionHistory> getInterBranchTransactions() {
-        System.out.println("═══ [DISTRIBUTED QUERY] Inter-Branch Transactions ═══");
 
         List<TransactionHistory> allTxns = new ArrayList<>();
 
@@ -228,11 +196,11 @@ public class DistributedQueryService {
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
                 List<TransactionHistory> txns = jdbc.query(
                         "SELECT * FROM transaction_history " +
-                        "WHERE transaction_type IN ('INTER_BRANCH_IN', 'INTER_BRANCH_OUT') " +
-                        "ORDER BY created_at DESC LIMIT 50",
+                                "WHERE transaction_type IN ('INTER_BRANCH_IN', 'INTER_BRANCH_OUT') " +
+                                "ORDER BY created_at DESC LIMIT 50",
                         mapper);
                 allTxns.addAll(txns);
             } catch (Exception e) {
@@ -248,12 +216,8 @@ public class DistributedQueryService {
         return allTxns;
     }
 
-    // ============================================================
     // QUERY 3.5: Giao dịch cùng chi nhánh
-    // ============================================================
-
     public List<TransactionHistory> getIntraBranchTransactions() {
-        System.out.println("═══ [DISTRIBUTED QUERY] Intra-Branch Transactions ═══");
 
         List<TransactionHistory> allTxns = new ArrayList<>();
 
@@ -276,11 +240,11 @@ public class DistributedQueryService {
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
                 List<TransactionHistory> txns = jdbc.query(
                         "SELECT * FROM transaction_history " +
-                        "WHERE transaction_type IN ('TRANSFER_IN', 'TRANSFER_OUT') " +
-                        "ORDER BY created_at DESC LIMIT 50",
+                                "WHERE transaction_type IN ('TRANSFER_IN', 'TRANSFER_OUT') " +
+                                "ORDER BY created_at DESC LIMIT 50",
                         mapper);
                 allTxns.addAll(txns);
             } catch (Exception e) {
@@ -291,17 +255,13 @@ public class DistributedQueryService {
         // Sort by created_at DESC
         allTxns.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         System.out.println("  Total intra-branch transactions: " + allTxns.size());
-        System.out.println("═══════════════════════════════════════════");
 
         return allTxns;
     }
-
-    // ============================================================
     // QUERY: Lịch sử giao dịch Gửi Tiền (Deposit) / Rút Tiền (Withdraw)
-    // ============================================================
 
     public List<TransactionHistory> getTransactionHistoryByType(String type, int limit) {
-        System.out.println("═══ [DISTRIBUTED QUERY] " + type + " History ═══");
+        System.out.println("═══ [DISTRIBUTED QUERY — READ FROM SLAVE] " + type + " History ═══");
 
         List<TransactionHistory> allTxns = new ArrayList<>();
 
@@ -324,11 +284,11 @@ public class DistributedQueryService {
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
                 List<TransactionHistory> txns = jdbc.query(
                         "SELECT * FROM transaction_history " +
-                        "WHERE transaction_type = ? " +
-                        "ORDER BY created_at DESC LIMIT ?",
+                                "WHERE transaction_type = ? " +
+                                "ORDER BY created_at DESC LIMIT ?",
                         mapper, type, limit);
                 allTxns.addAll(txns);
             } catch (Exception e) {
@@ -338,7 +298,7 @@ public class DistributedQueryService {
 
         // Sort by created_at DESC
         allTxns.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        
+
         // Take top limit
         List<TransactionHistory> result = allTxns.stream()
                 .limit(limit)
@@ -358,31 +318,27 @@ public class DistributedQueryService {
         return getTransactionHistoryByType("WITHDRAW", limit);
     }
 
-    // ============================================================
     // QUERY 4: Khách hàng có tài khoản ở nhiều chi nhánh
-    // Flow: Lấy phone từ mỗi site → group by phone → filter ≥ 2
     // ============================================================
 
     public List<Map<String, Object>> getMultiBranchCustomers() {
-        System.out.println("═══ [DISTRIBUTED QUERY] Multi-Branch Customers ═══");
 
         // Map: customerId → list of {branchId, fullName, totalBalance, accountCount}
         Map<Long, List<Map<String, Object>>> customerMap = new HashMap<>();
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
 
                 // Lấy tất cả customer có account ở chi nhánh này
                 List<Map<String, Object>> customers = jdbc.queryForList(
                         "SELECT c.customer_id, c.full_name, c.phone, " +
-                        "COUNT(a.account_id) as account_count, " +
-                        "COALESCE(SUM(a.balance), 0) as total_balance " +
-                        "FROM customer c " +
-                        "JOIN account a ON c.customer_id = a.customer_id " +
-                        "WHERE a.status = 'ACTIVE' " +
-                        "GROUP BY c.customer_id, c.full_name, c.phone"
-                );
+                                "COUNT(a.account_id) as account_count, " +
+                                "COALESCE(SUM(a.balance), 0) as total_balance " +
+                                "FROM customer c " +
+                                "JOIN account a ON c.customer_id = a.customer_id " +
+                                "WHERE a.status = 'ACTIVE' " +
+                                "GROUP BY c.customer_id, c.full_name, c.phone");
 
                 for (Map<String, Object> c : customers) {
                     Long customerId = ((Number) c.get("customer_id")).longValue();
@@ -395,7 +351,8 @@ public class DistributedQueryService {
                     customerMap.computeIfAbsent(customerId, k -> new ArrayList<>()).add(info);
                 }
 
-                System.out.println("  Site " + branchId + ": " + customers.size() + " customers with active accounts");
+                System.out.println(
+                        "  Site " + branchId + " (SLAVE): " + customers.size() + " customers with active accounts");
             } catch (Exception e) {
                 System.out.println("  Site " + branchId + ": UNREACHABLE");
             }
@@ -435,23 +392,20 @@ public class DistributedQueryService {
         return result;
     }
 
-    // ============================================================
     // QUERY 5: Thống kê giao dịch theo chi nhánh
-    // ============================================================
 
     public List<TransactionStatsResponse> getTransactionStats() {
-        System.out.println("═══ [DISTRIBUTED QUERY] Transaction Stats ═══");
+        System.out.println("═══ [DISTRIBUTED QUERY — READ FROM SLAVE] Transaction Stats ═══");
 
         List<TransactionStatsResponse> stats = new ArrayList<>();
         Map<String, String> branchNames = Map.of(
                 "HN", "Chi nhánh Hà Nội",
                 "DN", "Chi nhánh Đà Nẵng",
-                "HCM", "Chi nhánh TP.HCM"
-        );
+                "HCM", "Chi nhánh TP.HCM");
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             try {
-                JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
+                JdbcTemplate jdbc = siteRouter.getSlaveJdbcTemplate(branchId);
 
                 TransactionStatsResponse stat = new TransactionStatsResponse();
                 stat.setBranchId(branchId);
@@ -465,14 +419,14 @@ public class DistributedQueryService {
                 // Deposit count & amount
                 Map<String, Object> depositStats = jdbc.queryForMap(
                         "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total_amount " +
-                        "FROM transaction_history WHERE transaction_type = 'DEPOSIT'");
+                                "FROM transaction_history WHERE transaction_type = 'DEPOSIT'");
                 stat.setDepositCount(((Number) depositStats.get("cnt")).longValue());
                 stat.setTotalDepositAmount((BigDecimal) depositStats.get("total_amount"));
 
                 // Withdraw count & amount
                 Map<String, Object> withdrawStats = jdbc.queryForMap(
                         "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total_amount " +
-                        "FROM transaction_history WHERE transaction_type = 'WITHDRAW'");
+                                "FROM transaction_history WHERE transaction_type = 'WITHDRAW'");
                 stat.setWithdrawCount(((Number) withdrawStats.get("cnt")).longValue());
                 stat.setTotalWithdrawAmount((BigDecimal) withdrawStats.get("total_amount"));
 
@@ -483,7 +437,7 @@ public class DistributedQueryService {
                 stat.setTransferCount(transferCount != null ? transferCount : 0);
 
                 stats.add(stat);
-                System.out.println("  Site " + branchId + ": " + total + " transactions");
+                System.out.println("  Site " + branchId + " (SLAVE): " + total + " transactions");
 
             } catch (Exception e) {
                 System.out.println("  Site " + branchId + ": UNREACHABLE");

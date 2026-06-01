@@ -172,7 +172,7 @@ export default function Transactions() {
           <Card
             title={
               <>
-                <DollarOutlined style={{ color: "#52c41a" }} /> NẠP TIỀN
+                <div style={{ color: "#52c41a" }} /> NẠP TIỀN
               </>
             }
             style={{ borderTop: "3px solid #52c41a", marginBottom: 24 }}
@@ -187,7 +187,7 @@ export default function Transactions() {
               </Form.Item>
               <Form.Item
                 name="accountId"
-                label="Tài khoản (Account ID)"
+                label="Tài khoản"
                 rules={[{ required: true }]}
               >
                 <InputNumber
@@ -218,7 +218,7 @@ export default function Transactions() {
                 block
                 style={{ background: "#52c41a", borderColor: "#52c41a" }}
               >
-                <DollarOutlined /> Nạp tiền
+                <div /> Nạp tiền
               </Button>
             </Form>
 
@@ -239,8 +239,7 @@ export default function Transactions() {
           <Card
             title={
               <>
-                <MinusCircleOutlined style={{ color: "#fa8c16" }} /> RÚT TIỀN (1
-                lần)
+                <div style={{ color: "#fa8c16" }} /> RÚT TIỀN
               </>
             }
             style={{ borderTop: "3px solid #fa8c16", marginBottom: 24 }}
@@ -259,7 +258,7 @@ export default function Transactions() {
               </Form.Item>
               <Form.Item
                 name="accountId"
-                label="Tài khoản (Account ID)"
+                label="Tài khoản"
                 rules={[{ required: true }]}
               >
                 <InputNumber
@@ -290,7 +289,7 @@ export default function Transactions() {
                 block
                 style={{ background: "#fa8c16", borderColor: "#fa8c16" }}
               >
-                <MinusCircleOutlined /> Rút tiền
+                <div /> Rút tiền
               </Button>
             </Form>
 
@@ -315,7 +314,7 @@ export default function Transactions() {
       <Card
         title={
           <>
-            <ThunderboltOutlined style={{ color: "#ff4d4f" }} /> RÚT TIỀN ĐỒNG
+            <div style={{ color: "#ff4d4f" }} /> RÚT TIỀN ĐỒNG
             THỜI
           </>
         }
@@ -339,7 +338,7 @@ export default function Transactions() {
             <Col xs={24} md={6}>
               <Form.Item
                 name="accountId"
-                label="Account ID"
+                label="Tài khoản"
                 rules={[{ required: true }]}
               >
                 <InputNumber
@@ -354,7 +353,7 @@ export default function Transactions() {
                 name="amountThread1"
                 label={
                   <Space>
-                    <Tag color="blue">T1</Tag> Số tiền Thread 1
+                    <Tag color="blue">T1</Tag> Giao dịch 1
                   </Space>
                 }
                 rules={[{ required: true, message: "Nhập số tiền T1" }]}
@@ -375,7 +374,7 @@ export default function Transactions() {
                 name="amountThread2"
                 label={
                   <Space>
-                    <Tag color="purple">T2</Tag> Số tiền Thread 2
+                    <Tag color="purple">T2</Tag> Giao dịch 2
                   </Space>
                 }
                 rules={[{ required: true, message: "Nhập số tiền T2" }]}
@@ -566,7 +565,7 @@ export default function Transactions() {
                               : log.includes("[T2]")
                                 ? "#722ed1"
                                 : log.includes("✅") ||
-                                    log.includes("chính xác")
+                                  log.includes("chính xác")
                                   ? "#52c41a"
                                   : log.includes("❌") || log.includes("LOST")
                                     ? "#ff4d4f"

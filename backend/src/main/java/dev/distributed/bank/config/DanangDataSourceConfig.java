@@ -10,10 +10,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 
-/**
- * Cấu hình DataSource cho SITE 2: Chi nhánh Đà Nẵng.
- * Kết nối MySQL Đà Nẵng trên port 3308.
- */
 @Configuration
 public class DanangDataSourceConfig {
 

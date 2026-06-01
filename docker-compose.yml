@@ -1,13 +1,16 @@
 # ================================================================
-# DOCKER COMPOSE — 3 MySQL instances (3 chi nhánh ngân hàng)
+# DOCKER COMPOSE — 3 MySQL Master + 3 MySQL Slave (Replication)
 #
-# Mỗi MySQL đại diện cho 1 SITE trong hệ thống phân tán:
-#   - mysql-hanoi  (port 3307) → bank_hanoi
-#   - mysql-danang (port 3308) → bank_danang
-#   - mysql-hcm    (port 3309) → bank_hcm
+# Mỗi chi nhánh có 1 cặp Master-Slave:
+#   - mysql-hanoi       (Master, port 3307) → mysql-hanoi-slave  (Slave, port 3317)
+#   - mysql-danang      (Master, port 3308) → mysql-danang-slave (Slave, port 3318)
+#   - mysql-hcm         (Master, port 3309) → mysql-hcm-slave   (Slave, port 3319)
 #
 # Chạy:
 #   docker compose up -d --build
+#
+# Sau khi khởi động, thiết lập replication:
+#   ./docker/replication/setup-replication.sh
 #
 # Dừng:
 #   docker compose down
@@ -18,7 +21,7 @@
 
 services:
   # ============================================================
-  # SITE 1 — HÀ NỘI
+  # SITE 1 — HÀ NỘI (MASTER)
   # ============================================================
   mysql-hanoi:
     image: mysql:8
@@ -39,7 +42,8 @@ services:
     volumes:
       # File SQL khởi tạo database
       - ./docker/init-hanoi.sql:/docker-entrypoint-initdb.d/init.sql
-
+      # Cấu hình Master Replication
+      - ./docker/replication/master-hn.cnf:/etc/mysql/conf.d/replication.cnf
       # Lưu dữ liệu MySQL
       - mysql-hanoi-data:/var/lib/mysql
 
@@ -50,8 +54,51 @@ services:
       retries: 5
       start_period: 30s
 
+    networks:
+      - bank-network
+
   # ============================================================
-  # SITE 2 — ĐÀ NẴNG
+  # SITE 1 — HÀ NỘI (SLAVE)
+  # Nhân bản toàn bộ dữ liệu từ mysql-hanoi
+  # ============================================================
+  mysql-hanoi-slave:
+    image: mysql:8
+    container_name: mysql-hanoi-slave
+    restart: always
+
+    command: --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bank_hanoi
+      MYSQL_ROOT_HOST: "%"
+
+    ports:
+      - "3317:3306"
+
+    volumes:
+      # Cấu hình Slave Replication
+      - ./docker/replication/slave-hn.cnf:/etc/mysql/conf.d/replication.cnf
+      # Lưu dữ liệu Slave
+      - mysql-hanoi-slave-data:/var/lib/mysql
+
+    depends_on:
+      mysql-hanoi:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - bank-network
+
+  # ============================================================
+  # SITE 2 — ĐÀ NẴNG (MASTER)
   # ============================================================
   mysql-danang:
     image: mysql:8
@@ -71,6 +118,7 @@ services:
 
     volumes:
       - ./docker/init-danang.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/replication/master-dn.cnf:/etc/mysql/conf.d/replication.cnf
       - mysql-danang-data:/var/lib/mysql
 
     healthcheck:
@@ -80,8 +128,48 @@ services:
       retries: 5
       start_period: 30s
 
+    networks:
+      - bank-network
+
   # ============================================================
-  # SITE 3 — TP.HCM
+  # SITE 2 — ĐÀ NẴNG (SLAVE)
+  # ============================================================
+  mysql-danang-slave:
+    image: mysql:8
+    container_name: mysql-danang-slave
+    restart: always
+
+    command: --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bank_danang
+      MYSQL_ROOT_HOST: "%"
+
+    ports:
+      - "3318:3306"
+
+    volumes:
+      - ./docker/replication/slave-dn.cnf:/etc/mysql/conf.d/replication.cnf
+      - mysql-danang-slave-data:/var/lib/mysql
+
+    depends_on:
+      mysql-danang:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - bank-network
+
+  # ============================================================
+  # SITE 3 — TP.HCM (MASTER)
   # ============================================================
   mysql-hcm:
     image: mysql:8
@@ -101,6 +189,7 @@ services:
 
     volumes:
       - ./docker/init-hcm.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/replication/master-hcm.cnf:/etc/mysql/conf.d/replication.cnf
       - mysql-hcm-data:/var/lib/mysql
 
     healthcheck:
@@ -110,6 +199,53 @@ services:
       retries: 5
       start_period: 30s
 
+    networks:
+      - bank-network
+
+  # ============================================================
+  # SITE 3 — TP.HCM (SLAVE)
+  # ============================================================
+  mysql-hcm-slave:
+    image: mysql:8
+    container_name: mysql-hcm-slave
+    restart: always
+
+    command: --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bank_hcm
+      MYSQL_ROOT_HOST: "%"
+
+    ports:
+      - "3319:3306"
+
+    volumes:
+      - ./docker/replication/slave-hcm.cnf:/etc/mysql/conf.d/replication.cnf
+      - mysql-hcm-slave-data:/var/lib/mysql
+
+    depends_on:
+      mysql-hcm:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - bank-network
+
+# ================================================================
+# NETWORKS
+# ================================================================
+networks:
+  bank-network:
+    driver: bridge
+
 # ================================================================
 # VOLUMES
 # ================================================================
@@ -117,3 +253,6 @@ volumes:
   mysql-hanoi-data:
   mysql-danang-data:
   mysql-hcm-data:
+  mysql-hanoi-slave-data:
+  mysql-danang-slave-data:
+  mysql-hcm-slave-data:

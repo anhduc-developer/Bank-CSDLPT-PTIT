@@ -1,13 +1,6 @@
--- ================================================================
--- SITE 2: CHI NHÁNH ĐÀ NẴNG (bank_danang)
--- ================================================================
--- Phân mảnh ngang: site này CHỈ chứa dữ liệu branch_id = 'DN'
--- Schema giống hệt Hà Nội — chỉ khác dữ liệu mẫu
--- ================================================================
 
 USE bank_danang;
 SET NAMES utf8mb4;
--- BẢNG 1: branch
 CREATE TABLE IF NOT EXISTS branch (
     branch_id   VARCHAR(10)  PRIMARY KEY,
     branch_name VARCHAR(100) NOT NULL,
@@ -15,7 +8,6 @@ CREATE TABLE IF NOT EXISTS branch (
     created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
 
--- BẢNG 2: customer
 CREATE TABLE IF NOT EXISTS customer (
     customer_id BIGINT       AUTO_INCREMENT PRIMARY KEY,
     full_name   VARCHAR(100) NOT NULL,
@@ -27,7 +19,6 @@ CREATE TABLE IF NOT EXISTS customer (
     FOREIGN KEY (branch_id) REFERENCES branch(branch_id)
 );
 
--- BẢNG 3: account
 CREATE TABLE IF NOT EXISTS account (
     account_id  BIGINT        AUTO_INCREMENT PRIMARY KEY,
     customer_id BIGINT        NOT NULL,
@@ -39,8 +30,6 @@ CREATE TABLE IF NOT EXISTS account (
     FOREIGN KEY (branch_id)   REFERENCES branch(branch_id),
     CHECK (balance >= 0)
 );
-
--- BẢNG 4: transaction_history
 CREATE TABLE IF NOT EXISTS transaction_history (
     transaction_id     BIGINT        AUTO_INCREMENT PRIMARY KEY,
     transaction_type   VARCHAR(30)   NOT NULL,
@@ -55,7 +44,6 @@ CREATE TABLE IF NOT EXISTS transaction_history (
     created_at         TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 );
 
--- BẢNG 5: distributed_transaction_log
 CREATE TABLE IF NOT EXISTS distributed_transaction_log (
     txn_id             VARCHAR(50)   PRIMARY KEY,
     txn_type           VARCHAR(30)   NOT NULL,
@@ -70,7 +58,6 @@ CREATE TABLE IF NOT EXISTS distributed_transaction_log (
     updated_at         TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- BẢNG 6: transaction_participant
 CREATE TABLE IF NOT EXISTS transaction_participant (
     id         BIGINT      AUTO_INCREMENT PRIMARY KEY,
     txn_id     VARCHAR(50) NOT NULL,
@@ -82,14 +69,9 @@ CREATE TABLE IF NOT EXISTS transaction_participant (
     FOREIGN KEY (txn_id) REFERENCES distributed_transaction_log(txn_id)
 );
 
--- ================================================================
--- DỮ LIỆU MẪU — Chi nhánh Đà Nẵng
--- ================================================================
 
 INSERT INTO branch (branch_id, branch_name, city) VALUES
 ('DN', 'Chi nhánh Đà Nẵng', 'Đà Nẵng');
-
--- 5 khách hàng mẫu
 INSERT INTO customer (full_name, phone, email, address, branch_id) VALUES
 ('Võ Thanh Phong',    '0905000001', 'phong.vo@email.com',    '15 Bạch Đằng, Hải Châu, Đà Nẵng',        'DN'),
 ('Nguyễn Thị Quỳnh',  '0905000002', 'quynh.nguyen@email.com','28 Nguyễn Văn Linh, Thanh Khê, Đà Nẵng',  'DN'),
@@ -97,15 +79,12 @@ INSERT INTO customer (full_name, phone, email, address, branch_id) VALUES
 ('Lê Thị Sương',      '0905000004', 'suong.le@email.com',    '67 Lê Duẩn, Hải Châu, Đà Nẵng',           'DN'),
 ('Phan Văn Tài',      '0905000005', 'tai.phan@email.com',    '89 Điện Biên Phủ, Thanh Khê, Đà Nẵng',    'DN');
 
--- 5 tài khoản mẫu
 INSERT INTO account (customer_id, branch_id, balance, status) VALUES
-(1, 'DN', 40000000.00, 'ACTIVE'),     -- Phong: 40 triệu
-(2, 'DN', 60000000.00, 'ACTIVE'),     -- Quỳnh: 60 triệu
-(3, 'DN', 25000000.00, 'ACTIVE'),     -- Rin: 25 triệu
-(4, 'DN', 80000000.00, 'ACTIVE'),     -- Sương: 80 triệu
-(5, 'DN', 35000000.00, 'ACTIVE');     -- Tài: 35 triệu
-
--- Giao dịch mẫu
+(1, 'DN', 40000000.00, 'ACTIVE'), 
+(2, 'DN', 60000000.00, 'ACTIVE'),   
+(3, 'DN', 25000000.00, 'ACTIVE'),
+(4, 'DN', 80000000.00, 'ACTIVE'), 
+(5, 'DN', 35000000.00, 'ACTIVE'); 
 INSERT INTO transaction_history (transaction_type, amount, account_id, balance_after, status, description) VALUES
 ('DEPOSIT', 40000000.00, 1, 40000000.00, 'SUCCESS', 'Nạp tiền ban đầu'),
 ('DEPOSIT', 60000000.00, 2, 60000000.00, 'SUCCESS', 'Nạp tiền ban đầu'),

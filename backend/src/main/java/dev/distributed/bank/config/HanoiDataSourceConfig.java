@@ -2,7 +2,6 @@ package dev.distributed.bank.config;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -12,16 +11,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 
-/**
- * Cấu hình DataSource cho SITE 1: Chi nhánh Hà Nội.
- *
- * Tạo 3 bean:
- * 1. DataSource — kết nối MySQL Hà Nội (port 3307)
- * 2. JdbcTemplate — để chạy SQL trên MySQL Hà Nội
- * 3. TransactionManager — quản lý transaction trên MySQL Hà Nội
- *
- * @Primary: đánh dấu đây là DataSource mặc định (Spring cần 1 cái primary)
- */
 @Configuration
 public class HanoiDataSourceConfig {
 

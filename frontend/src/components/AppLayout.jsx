@@ -10,6 +10,7 @@ import {
   BarChartOutlined,
   StarOutlined,
   ThunderboltOutlined,
+  CloudSyncOutlined,
 } from "@ant-design/icons";
 
 const { Sider, Content } = Layout;
@@ -23,6 +24,7 @@ const menuItems = [
   { key: "/transfers", icon: <SwapOutlined />, label: "Chuyển tiền" },
   { key: "/statistics", icon: <BarChartOutlined />, label: "Thống kê" },
   { key: "/deadlock-demo", icon: <ThunderboltOutlined />, label: "Demo Deadlock" },
+  { key: "/replication", icon: <CloudSyncOutlined />, label: "Nhân bản dữ liệu" },
 ];
 export default function AppLayout() {
   const navigate = useNavigate();

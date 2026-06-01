@@ -8,6 +8,7 @@ import Transactions from "./pages/Transactions";
 import Transfers from "./pages/Transfers";
 import Statistics from "./pages/Statistics";
 import DeadlockDemo from "./pages/DeadlockDemo";
+import Replication from "./pages/Replication";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="transfers" element={<Transfers />} />
           <Route path="statistics" element={<Statistics />} />
           <Route path="deadlock-demo" element={<DeadlockDemo />} />
+          <Route path="replication" element={<Replication />} />
         </Route>
       </Routes>
     </BrowserRouter>

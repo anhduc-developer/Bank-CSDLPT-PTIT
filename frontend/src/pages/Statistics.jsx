@@ -132,8 +132,7 @@ export default function Statistics() {
             columns={[
               {
                 title: '#', key: 'rank', render: (_, __, i) => {
-                  const medals = ['🥇', '🥈', '🥉'];
-                  return i < 3 ? <span style={{ fontSize: 20 }}>{medals[i]}</span> : i + 1;
+                  return i + 1
                 }
               },
               { title: 'ID', dataIndex: 'customerId' },
@@ -311,8 +310,7 @@ export default function Statistics() {
             columns={[
               {
                 title: '#', key: 'rank', render: (_, __, i) => {
-                  const medals = ['🥇', '🥈', '🥉'];
-                  return i < 3 ? <span style={{ fontSize: 20 }}>{medals[i]}</span> : i + 1;
+                  return i + 1
                 }
               },
               { title: 'ID', dataIndex: 'customerId' },
