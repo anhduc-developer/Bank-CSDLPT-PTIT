@@ -1,211 +1,345 @@
-# Hệ thống Ngân hàng Phân tán (Distributed Banking System)
+# Distributed Banking System
 
-## Giới thiệu
+Hệ thống ngân hàng phân tán mô phỏng môi trường quản lý đa chi nhánh trên nền tảng cơ sở dữ liệu phân tán. Dự án tập trung vào các kỹ thuật cốt lõi của hệ phân tán như phân mảnh dữ liệu, giao dịch phân tán, kiểm soát tương tranh, xử lý deadlock và nhân bản dữ liệu.
 
-Hệ thống Ngân hàng Phân tán là dự án mô phỏng mô hình ngân hàng đa chi nhánh dựa trên kiến trúc cơ sở dữ liệu phân tán. Dữ liệu được phân mảnh ngang (Horizontal Fragmentation) theo từng chi nhánh nhằm đảm bảo tính độc lập trong quản lý dữ liệu và hỗ trợ các giao dịch liên chi nhánh.
+---
 
-Hệ thống gồm 3 Site độc lập:
+## Tổng quan
 
-* Hà Nội (HN)
-* Đà Nẵng (DN)
-* Thành phố Hồ Chí Minh (HCM)
+Trong mô hình ngân hàng thực tế, mỗi chi nhánh quản lý dữ liệu khách hàng và tài khoản riêng nhưng vẫn phải hỗ trợ các nghiệp vụ xuyên chi nhánh. Hệ thống được thiết kế với ba site độc lập, mỗi site sở hữu cơ sở dữ liệu riêng và có khả năng phối hợp xử lý giao dịch thông qua giao thức Two-Phase Commit (2PC).
 
-Các chức năng chính:
+### Các chức năng chính
 
-* Quản lý khách hàng
-* Quản lý tài khoản
-* Nạp tiền
-* Rút tiền
+* Quản lý khách hàng và tài khoản theo chi nhánh
+* Nạp tiền, rút tiền
 * Chuyển tiền nội bộ chi nhánh
 * Chuyển tiền liên chi nhánh bằng giao thức Two-Phase Commit (2PC)
-* Truy vấn phân tán (Distributed Queries)
-* Mô phỏng Deadlock và Crash Recovery
+* Kiểm soát tương tranh bằng Row-Level Locking
+* Mô phỏng Deadlock và Lost Update
+* Truy vấn phân tán trên nhiều site
+* Nhân bản dữ liệu Master–Slave Replication
+* Giám sát trạng thái đồng bộ dữ liệu
 
 ---
 
-# 1. Cơ sở dữ liệu mẫu
+## Kiến trúc hệ thống
 
-Dự án đã chuẩn bị sẵn cấu trúc cơ sở dữ liệu và dữ liệu mẫu cho cả ba chi nhánh.
+### Mô hình triển khai
 
-Các tệp khởi tạo dữ liệu:
 
-```text
-docker/init-hanoi.sql
-docker/init-danang.sql
-docker/init-hcm.sql
-```
+Frontend (React)
+        │
+        ▼
+Backend (Spring Boot)
+Transaction Coordinator
+        │
+ ┌──────┼──────┐
+ ▼      ▼      ▼
+HN     DN     HCM
+Master Master Master
+ │       │       │
+ ▼       ▼       ▼
+Slave   Slave   Slave
 
-Các tệp này sẽ được Docker tự động thực thi trong lần khởi động đầu tiên.
 
-Người dùng không cần chạy thủ công các tập lệnh SQL.
+### Các Site
 
----
+| Site   | Chi nhánh | Database    | Master | Slave |
+| ------ | --------- | ----------- | ------ | ----- |
+| Site 1 | Hà Nội    | bank_hanoi  | 3307   | 3317  |
+| Site 2 | Đà Nẵng   | bank_danang | 3308   | 3318  |
+| Site 3 | TP.HCM    | bank_hcm    | 3309   | 3319  |
 
-# 2. Yêu cầu hệ thống
+### Kiến trúc dữ liệu
 
-Trước khi chạy dự án, cần cài đặt:
-
-1. Docker Desktop
-2. Java JDK 17 trở lên
-3. Node.js 18 trở lên
-
----
-
-# 3. Khởi động hệ thống
-
-Hệ thống bao gồm:
-
-* 03 máy chủ MySQL
-* 01 Backend Spring Boot
-* 01 Frontend ReactJS
-
-Khuyến nghị mở 3 cửa sổ Terminal riêng biệt.
+* Phân mảnh ngang (Horizontal Fragmentation) theo chi nhánh
+* Mỗi site quản lý dữ liệu cục bộ của mình
+* Các giao dịch liên chi nhánh được điều phối bởi Transaction Coordinator
+* Dữ liệu báo cáo được đọc từ Slave nhằm giảm tải cho Master
 
 ---
 
-## 3.1 Khởi động các Site MySQL
+## Công nghệ sử dụng
 
-Tại thư mục gốc của dự án:
+### Backend
 
-```bash
-docker-compose up -d
-```
+| Công nghệ   | Phiên bản |
+| ----------- | --------- |
+| Java        | 17+       |
+| Spring Boot | 3.x       |
+| Spring JDBC | Latest    |
+| HikariCP    | Latest    |
+| Gradle      | 8.x       |
 
-Lệnh trên sẽ khởi động:
+### Frontend
 
-| Site    | Container    | Port |
-| ------- | ------------ | ---- |
-| Hà Nội  | mysql_hanoi  | 3306 |
-| Đà Nẵng | mysql_danang | 3307 |
-| TP.HCM  | mysql_hcm    | 3308 |
+| Công nghệ  |
+| ---------- |
+| React 18   |
+| Vite       |
+| Ant Design |
+| Axios      |
+
+### Database & Infrastructure
+
+| Công nghệ        |
+| ---------------- |
+| MySQL 8          |
+| Docker           |
+| Docker Compose   |
+| GTID Replication |
+
+---
+
+## Các kỹ thuật CSDL phân tán được áp dụng
+
+### 1. Horizontal Fragmentation
+
+Dữ liệu được phân chia theo chi nhánh:
+
+* Hà Nội → bank_hanoi
+* Đà Nẵng → bank_danang
+* TP.HCM → bank_hcm
+
+Mỗi site chỉ quản lý dữ liệu của chi nhánh tương ứng.
+
+---
+
+### 2. Distributed Transactions (2PC)
+
+Chuyển tiền liên chi nhánh sử dụng giao thức Two-Phase Commit.
+
+#### Phase 1 – Prepare
+
+* Khóa tài khoản nguồn và đích bằng `SELECT ... FOR UPDATE`
+* Kiểm tra điều kiện giao dịch
+* Ghi log trạng thái PREPARED
+
+#### Phase 2 – Commit
+
+* Nếu tất cả participant thành công → COMMIT
+* Nếu bất kỳ participant thất bại → ROLLBACK toàn bộ
+
+Đảm bảo tính:
+
+* Atomicity
+* Consistency
+* Durability
+
+cho giao dịch phân tán.
+
+---
+
+### 3. Concurrency Control
+
+Hệ thống sử dụng:
+
+
+SELECT ... FOR UPDATE
+
+
+để khóa bản ghi ở mức hàng (Row-Level Lock).
+
+Các giao dịch chuyển tiền luôn khóa tài khoản theo thứ tự tăng dần của ID nhằm ngăn chặn Circular Wait và giảm nguy cơ Deadlock.
+
+---
+
+### 4. Deadlock Simulation
+
+Mô phỏng tình huống:
+
+
+Thread 1:
+Account A → Account B
+
+Thread 2:
+Account B → Account A
+
+
+MySQL InnoDB sẽ:
+
+* Phát hiện vòng chờ
+* Chọn Deadlock Victim
+* Rollback giao dịch bị chọn
+
+---
+
+### 5. Master–Slave Replication
+
+Mỗi chi nhánh gồm:
+
+
+Master (Read/Write)
+        │
+        ▼
+Slave (Read Only)
+
+
+Sử dụng:
+
+* GTID Replication
+* Binary Log
+* Relay Log
+
+Thông tin giám sát:
+
+* Replica_IO_Running
+* Replica_SQL_Running
+* Seconds_Behind_Source
+
+---
+
+### 6. Distributed Queries
+
+Các truy vấn thống kê được thực hiện trên toàn bộ Slave:
+
+* Tổng số dư toàn hệ thống
+* Top khách hàng
+* Lịch sử giao dịch
+* Giao dịch liên chi nhánh
+* Thống kê theo chi nhánh
+
+Kết quả được tổng hợp tại tầng ứng dụng.
+
+---
+
+## Cấu trúc cơ sở dữ liệu
+
+Mỗi site sử dụng cùng một schema.
+
+| Bảng                        | Chức năng                     |
+| --------------------------- | ----------------------------- |
+| branch                      | Thông tin chi nhánh           |
+| customer                    | Thông tin khách hàng          |
+| account                     | Thông tin tài khoản           |
+| transaction_history         | Lịch sử giao dịch             |
+| distributed_transaction_log | Log giao dịch phân tán        |
+| transaction_participant     | Thông tin participant của 2PC |
+
+---
+
+## Hướng dẫn chạy hệ thống
+
+### 1. Khởi động Database
+
+bash
+docker compose up -d
+
 
 Kiểm tra trạng thái:
 
-```bash
+bash
 docker ps
-```
+
 
 ---
 
-## 3.2 Khởi động Backend
+### 2. Thiết lập Replication
 
-Di chuyển tới thư mục backend.
 
-### macOS / Linux
+chmod +x docker/replication/setup-replication.sh
 
-```bash
+./docker/replication/setup-replication.sh
+
+
+Kết quả mong đợi:
+
+
+Replica_IO_Running: Yes
+Replica_SQL_Running: Yes
+
+
+---
+
+### 3. Chạy Backend
+
+bash
 cd backend
+
 ./gradlew bootRun
-```
 
-### Windows
 
-```cmd
-cd backend
-gradlew.bat bootRun
-```
+Backend:
 
-Sau khi khởi động thành công:
 
-```text
 http://localhost:8080
-```
+
 
 ---
 
-## 3.3 Khởi động Frontend
+### 4. Chạy Frontend
 
-Di chuyển tới thư mục frontend.
-
-```bash
+bash
 cd frontend
+
 npm install
 npm run dev
-```
 
-Sau khi khởi động thành công:
 
-```text
+Frontend:
+
+
 http://localhost:3000
-```
 
-Truy cập địa chỉ trên trình duyệt để sử dụng hệ thống.
 
 ---
 
-# 4. Kiểm thử API bằng Postman
+## Các kịch bản demo
 
-Dự án cung cấp sẵn bộ sưu tập API phục vụ kiểm thử.
+### Demo 2PC
 
-Các bước thực hiện:
+* Chuyển tiền Hà Nội → Đà Nẵng
+* Chuyển tiền Đà Nẵng → TP.HCM
+* Giả lập lỗi giữa Prepare và Commit
 
-1. Mở Postman.
-2. Chọn Import.
-3. Chọn tệp:
+### Demo Lost Update
 
-```text
-Distributed_Banking.postman_collection.json
-```
+* Hai luồng rút tiền đồng thời
+* So sánh có và không sử dụng locking
 
-4. Thực hiện các kịch bản kiểm thử có sẵn.
+### Demo Deadlock
 
-Các nhóm API chính:
+* Hai transaction khóa tài nguyên theo thứ tự ngược nhau
+* Quan sát Deadlock Victim
 
-* Customer Management
-* Account Management
-* Deposit
-* Withdraw
-* Local Transfer
-* Inter-Branch Transfer (2PC)
-* Distributed Queries
-* Deadlock Simulation
+### Demo Replication
+
+* Ghi dữ liệu vào Master
+* Đọc dữ liệu từ Slave
+* Theo dõi Replication Lag
 
 ---
 
-# 5. Kiến trúc hệ thống
+## API chính
 
-```text
-                    Transaction Manager
-                             |
-        ------------------------------------------------
-        |                      |                      |
-        |                      |                      |
-      HN Site               DN Site               HCM Site
-      MySQL                 MySQL                 MySQL
-```
-
-Mỗi chi nhánh quản lý dữ liệu cục bộ của mình và tham gia vào các giao dịch phân tán thông qua Transaction Manager.
+| Nhóm chức năng | Endpoint           |
+| -------------- | ------------------ |
+| Customers      | /api/customers     |
+| Accounts       | /api/accounts      |
+| Transactions   | /api/transactions  |
+| Transfers      | /api/transfers     |
+| Statistics     | /api/stats         |
+| Replication    | /api/replication   |
+| Deadlock Demo  | /api/demo/deadlock |
 
 ---
 
-# 6. Công nghệ sử dụng
+## Kết quả đạt được
 
-## Backend
-
-* Java 17
-* Spring Boot
-* Spring Data JPA
-* MySQL
-* Docker
-* Gradle
-
-## Frontend
-
-* ReactJS
-* Vite
-* Axios
-* Ant Design
-
-## Database
-
-* MySQL InnoDB
-* Horizontal Fragmentation
-* Two-Phase Commit (2PC)
+* Xây dựng thành công mô hình ngân hàng phân tán 3 site
+* Triển khai giao dịch phân tán bằng Two-Phase Commit
+* Hỗ trợ Replication Master–Slave
+* Kiểm soát tương tranh bằng Pessimistic Locking
+* Mô phỏng Lost Update và Deadlock
+* Hỗ trợ truy vấn phân tán trên nhiều site
+* Xây dựng giao diện quản lý trực quan bằng React
 
 ---
 
-# 7. Thành viên thực hiện
+## Thành viên thực hiện
 
-* Mai Anh Đức
-* Trần Đăng Dương
-* Trịnh Anh Tú
+|          Họ và tên               |
+| ---------------------------------|
+|     Mai Anh Đức (Leader)         |
+|     Trần Đăng Dương              |
+|     Trịnh Anh Tú                 |
