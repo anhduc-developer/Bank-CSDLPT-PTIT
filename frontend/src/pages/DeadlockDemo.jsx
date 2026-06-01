@@ -151,10 +151,6 @@ export default function DeadlockDemo() {
           <div style={{ color: "#faad14", marginRight: 8 }} />
           DEADLOCK
         </h2>
-        <p>
-          Mô phỏng deadlock khi 2 giao dịch chuyển tiền ngược chiều xảy ra đồng
-          thời
-        </p>
       </div>
 
       <Row gutter={24}>
@@ -166,7 +162,7 @@ export default function DeadlockDemo() {
             title={
               <span>
                 <div style={{ marginRight: 8 }} />
-                Thiết lập Demo
+                GIAO DỊCH
               </span>
             }
             style={{
@@ -550,7 +546,7 @@ export default function DeadlockDemo() {
                         >
                           {fmt(result.balanceBBefore)} ₫
                         </span>
-                        <span style={{ color: "#8c8c8c" }}>→</span>
+                        <span style={{ color: "#8c8c8c" }}> → </span>
                         <span
                           style={{
                             fontSize: 18,
@@ -672,142 +668,7 @@ export default function DeadlockDemo() {
                 </div>
               </Card>
 
-              {/* Thread-by-Thread View */}
-              <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={12}>
-                  <Card
-                    title={
-                      <span style={{ color: COLORS.thread1 }}>
-                        Thread-1 (A → B)
-                      </span>
-                    }
-                    size="small"
-                    style={{
-                      borderTop: `3px solid ${COLORS.thread1}`,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                      {result.thread1Logs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            fontSize: 11,
-                            fontFamily: "monospace",
-                            lineHeight: 1.8,
-                            color: isDeadlockLog(log)
-                              ? COLORS.deadlock
-                              : isSuccessLog(log)
-                                ? COLORS.success
-                                : "#595959",
-                            fontWeight: isDeadlockLog(log) ? 700 : 400,
-                            padding: "2px 0",
-                            borderBottom: "1px solid #f0f0f0",
-                          }}
-                        >
-                          {log.replace(/\[.*?\]\s*\[THREAD-1\]\s*/, "")}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </Col>
-                <Col span={12}>
-                  <Card
-                    title={
-                      <span style={{ color: COLORS.thread2 }}>
-                        Thread-2 (B → A)
-                      </span>
-                    }
-                    size="small"
-                    style={{
-                      borderTop: `3px solid ${COLORS.thread2}`,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                      {result.thread2Logs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            fontSize: 11,
-                            fontFamily: "monospace",
-                            lineHeight: 1.8,
-                            color: isDeadlockLog(log)
-                              ? COLORS.deadlock
-                              : isSuccessLog(log)
-                                ? COLORS.success
-                                : "#595959",
-                            fontWeight: isDeadlockLog(log) ? 700 : 400,
-                            padding: "2px 0",
-                            borderBottom: "1px solid #f0f0f0",
-                          }}
-                        >
-                          {log.replace(/\[.*?\]\s*\[THREAD-2\]\s*/, "")}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </Col>
-              </Row>
 
-              {/* Conclusion */}
-              <Card
-                style={{
-                  borderRadius: 12,
-                  background: "linear-gradient(135deg, #667eea08, #764ba208)",
-                  border: "1px solid #667eea33",
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <WarningOutlined
-                    style={{
-                      fontSize: 32,
-                      color: "#faad14",
-                      marginBottom: 12,
-                    }}
-                  />
-                  <Title level={5} style={{ color: "#262626" }}>
-                    Kết luận — Deadlock và cách phòng tránh
-                  </Title>
-                  <Divider style={{ margin: "12px 0" }} />
-                  <div
-                    style={{
-                      textAlign: "left",
-                      maxWidth: 600,
-                      margin: "0 auto",
-                    }}
-                  >
-                    <div style={{ marginBottom: 12 }}>
-                      <Tag color="red" style={{ fontWeight: 600 }}>
-                        NGUYÊN NHÂN
-                      </Tag>
-                      <Text style={{ fontSize: 13 }}>
-                        2 transaction lock tài khoản theo thứ tự ngược nhau →
-                        circular wait → deadlock
-                      </Text>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <Tag color="blue" style={{ fontWeight: 600 }}>
-                        MYSQL XỬ LÝ
-                      </Tag>
-                      <Text style={{ fontSize: 13 }}>
-                        InnoDB phát hiện deadlock → chọn 1 transaction làm
-                        victim → rollback victim → transaction còn lại tiếp tục
-                      </Text>
-                    </div>
-                    <div>
-                      <Tag color="green" style={{ fontWeight: 600 }}>
-                        GIẢI PHÁP
-                      </Tag>
-                      <Text style={{ fontSize: 13 }}>
-                        Luôn lock theo thứ tự ID tăng dần (lock account có ID
-                        nhỏ trước, ID lớn sau) → tránh circular wait → không
-                        bao giờ deadlock
-                      </Text>
-                    </div>
-                  </div>
-                </div>
-              </Card>
             </>
           )}
         </Col>

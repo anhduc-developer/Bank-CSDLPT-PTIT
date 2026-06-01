@@ -47,8 +47,7 @@ public class ReplicationService {
         Map<String, String> branchNames = Map.of(
                 "HN", "Chi nhánh Hà Nội",
                 "DN", "Chi nhánh Đà Nẵng",
-                "HCM", "Chi nhánh TP.HCM"
-        );
+                "HCM", "Chi nhánh TP.HCM");
 
         for (String branchId : siteRouter.getAllBranchIds()) {
             Map<String, Object> status = new LinkedHashMap<>();
@@ -122,8 +121,8 @@ public class ReplicationService {
         result.put("branchId", branchId);
         result.put("timestamp", LocalDateTime.now().toString());
 
-        String[] tables = {"branch", "customer", "account", "transaction_history",
-                           "distributed_transaction_log", "transaction_participant"};
+        String[] tables = { "branch", "customer", "account", "transaction_history",
+                "distributed_transaction_log", "transaction_participant" };
 
         List<Map<String, Object>> tableComparisons = new ArrayList<>();
 
@@ -146,7 +145,7 @@ public class ReplicationService {
                     comparison.put("inSync", Objects.equals(masterCount, slaveCount));
                     comparison.put("difference", Math.abs(
                             (masterCount != null ? masterCount : 0) -
-                            (slaveCount != null ? slaveCount : 0)));
+                                    (slaveCount != null ? slaveCount : 0)));
 
                     System.out.println("  " + table + ": Master=" + masterCount +
                             ", Slave=" + slaveCount +
@@ -223,8 +222,8 @@ public class ReplicationService {
 
             masterJdbc.update(
                     "INSERT INTO transaction_history " +
-                    "(transaction_type, amount, account_id, balance_after, status, description) " +
-                    "VALUES ('DEPOSIT', 1.00, ?, 0.00, 'SUCCESS', ?)",
+                            "(transaction_type, amount, account_id, balance_after, status, description) " +
+                            "VALUES ('DEPOSIT', 1.00, ?, 0.00, 'SUCCESS', ?)",
                     accountId,
                     "[REPLICATION TEST] Ghi lúc " + LocalDateTime.now());
 
@@ -275,7 +274,8 @@ public class ReplicationService {
                 while (!replicated && attempts < maxAttempts) {
                     try {
                         Thread.sleep(200);
-                    } catch (InterruptedException ignored) {}
+                    } catch (InterruptedException ignored) {
+                    }
                     totalWaitMs += 200;
                     attempts++;
 

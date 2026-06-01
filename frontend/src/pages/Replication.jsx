@@ -218,7 +218,7 @@ export default function Replication() {
     <div>
       <Title level={2}>
         <div style={{ marginRight: 12 }} />
-        Data Replication
+        DATA REPLICATION
       </Title>
 
 
@@ -228,8 +228,8 @@ export default function Replication() {
       <Card
         title={
           <Space>
-            <SyncOutlined spin={loading.status} />
-            <span>Trạng thái Replication — 3 cặp Master-Slave</span>
+            <div spin={loading.status} />
+            <span>TRẠNG THÁI REPLICATION</span>
           </Space>
         }
         extra={
@@ -305,10 +305,6 @@ export default function Replication() {
         }
         style={{ marginBottom: 24 }}
       >
-        <Paragraph type="secondary">
-          So sánh số lượng bản ghi trên từng bảng giữa Master và Slave để kiểm
-          tra dữ liệu đã được nhân bản đầy đủ hay chưa.
-        </Paragraph>
 
         <Space style={{ marginBottom: 16 }}>
           <Select
@@ -316,9 +312,9 @@ export default function Replication() {
             onChange={setSelectedBranch}
             style={{ width: 200 }}
           >
-            <Option value="HN">🏛️ Chi nhánh Hà Nội (HN)</Option>
-            <Option value="DN">🏛️ Chi nhánh Đà Nẵng (DN)</Option>
-            <Option value="HCM">🏛️ Chi nhánh TP.HCM (HCM)</Option>
+            <Option value="HN">Hà Nội</Option>
+            <Option value="DN">Đà Nẵng</Option>
+            <Option value="HCM">TP.HCM</Option>
           </Select>
           <Button
             type="primary"
@@ -394,37 +390,12 @@ export default function Replication() {
       <Card
         title={
           <Space>
-            <ExperimentOutlined />
-            <span>Demo Replication Lag (Độ trễ nhân bản)</span>
+            <div />
+            <span>Replication Lag</span>
           </Space>
         }
       >
-        <Paragraph type="secondary">
-          Demo thời gian trễ khi nhân bản dữ liệu từ Master sang Slave. Hệ
-          thống sẽ: ghi 1 bản ghi vào Master → đọc ngay từ Slave → đo thời
-          gian đồng bộ.
-        </Paragraph>
 
-        <Alert
-          message="Quy trình demo"
-          description={
-            <ol style={{ margin: 0, paddingLeft: 20 }}>
-              <li>Đếm số bản ghi hiện tại trên Master và Slave</li>
-              <li>
-                Ghi 1 bản ghi mới vào bảng <code>transaction_history</code> trên{" "}
-                <strong>Master</strong>
-              </li>
-              <li>
-                Đọc ngay lập tức từ <strong>Slave</strong> — có thể chưa thấy
-                (replication lag)
-              </li>
-              <li>Đợi và kiểm tra lại cho đến khi Slave đồng bộ</li>
-            </ol>
-          }
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
 
         <Space style={{ marginBottom: 16 }}>
           <Select
@@ -432,9 +403,9 @@ export default function Replication() {
             onChange={setSelectedBranch}
             style={{ width: 200 }}
           >
-            <Option value="HN">🏛️ Chi nhánh Hà Nội (HN)</Option>
-            <Option value="DN">🏛️ Chi nhánh Đà Nẵng (DN)</Option>
-            <Option value="HCM">🏛️ Chi nhánh TP.HCM (HCM)</Option>
+            <Option value="HN">Hà Nội</Option>
+            <Option value="DN">Đà Nẵng</Option>
+            <Option value="HCM">TP.HCM</Option>
           </Select>
           <Button
             type="primary"
@@ -443,7 +414,7 @@ export default function Replication() {
             loading={loading.lag}
             danger
           >
-            Chạy Demo Replication Lag
+            RUN
           </Button>
         </Space>
 
