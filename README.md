@@ -27,6 +27,7 @@ Trong mô hình ngân hàng thực tế, mỗi chi nhánh quản lý dữ liệu
 ### Mô hình triển khai
 
 
+```
 Frontend (React)
         │
         ▼
@@ -40,6 +41,7 @@ Master Master Master
  │       │       │
  ▼       ▼       ▼
 Slave   Slave   Slave
+```
 
 
 ### Các Site
@@ -135,8 +137,9 @@ cho giao dịch phân tán.
 Hệ thống sử dụng:
 
 
+```sql
 SELECT ... FOR UPDATE
-
+```
 
 để khóa bản ghi ở mức hàng (Row-Level Lock).
 
@@ -149,11 +152,13 @@ Các giao dịch chuyển tiền luôn khóa tài khoản theo thứ tự tăng 
 Mô phỏng tình huống:
 
 
+```
 Thread 1:
 Account A → Account B
 
 Thread 2:
 Account B → Account A
+```
 
 
 MySQL InnoDB sẽ:
@@ -169,11 +174,12 @@ MySQL InnoDB sẽ:
 Mỗi chi nhánh gồm:
 
 
+```
 Master (Read/Write)
         │
         ▼
 Slave (Read Only)
-
+```
 
 Sử dụng:
 
@@ -222,65 +228,57 @@ Mỗi site sử dụng cùng một schema.
 
 ### 1. Khởi động Database
 
-bash
+```bash
 docker compose up -d
-
+```
 
 Kiểm tra trạng thái:
 
-bash
+```bash
 docker ps
-
+```
 
 ---
 
 ### 2. Thiết lập Replication
 
 
+```bash
 chmod +x docker/replication/setup-replication.sh
-
 ./docker/replication/setup-replication.sh
+```
 
 
 Kết quả mong đợi:
 
 
+```
 Replica_IO_Running: Yes
 Replica_SQL_Running: Yes
-
+```
 
 ---
 
 ### 3. Chạy Backend
 
-bash
+```bash
 cd backend
-
 ./gradlew bootRun
+```
 
-
-Backend:
-
-
-http://localhost:8080
-
+Backend: `http://localhost:8080`
 
 ---
 
 ### 4. Chạy Frontend
 
-bash
+```bash
 cd frontend
-
 npm install
 npm run dev
+```
 
-
-Frontend:
-
-
-http://localhost:3000
-
+Frontend: `http://localhost:3000`
 
 ---
 
