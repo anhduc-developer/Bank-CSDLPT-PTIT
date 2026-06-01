@@ -4,22 +4,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * DTO: Response kết quả demo Deadlock.
- *
- * Chứa chi tiết từng bước của 2 thread,
- * thread nào thắng (winner), thread nào bị MySQL rollback (victim).
- */
 public class DeadlockDemoResponse {
 
-    private String status; // "DEADLOCK_DETECTED"
+    private String status;
     private String branchId;
 
-    // Account info
     private Long accountAId;
     private Long accountBId;
 
-    // Balance tracking
     private BigDecimal balanceABefore;
     private BigDecimal balanceBBefore;
     private BigDecimal balanceAAfter;
@@ -27,24 +19,20 @@ public class DeadlockDemoResponse {
     private BigDecimal amountAtoB;
     private BigDecimal amountBtoA;
 
-    // Deadlock info
-    private String winnerThread; // "Thread-1" hoặc "Thread-2"
-    private String victimThread; // Thread bị MySQL rollback
-    private String winnerDirection; // "A → B" hoặc "B → A"
-    private String victimDirection; // Hướng chuyển của victim
+    private String winnerThread;
+    private String victimThread;
+    private String winnerDirection;
+    private String victimDirection;
 
-    // Logs
     private List<String> thread1Logs;
     private List<String> thread2Logs;
-    private List<String> combinedLogs; // Xếp theo thời gian
+    private List<String> combinedLogs;
 
     private LocalDateTime timestamp;
 
     public DeadlockDemoResponse() {
         this.timestamp = LocalDateTime.now();
     }
-
-    // Getters & Setters
 
     public String getStatus() {
         return status;

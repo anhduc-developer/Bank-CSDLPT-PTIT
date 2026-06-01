@@ -2,40 +2,69 @@ package dev.distributed.bank.dto.response;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Response tổng số dư toàn hệ thống (Distributed Query).
- * Coordinator query cả 3 site rồi tổng hợp lại.
- */
 public class TotalBalanceResponse {
 
     private BigDecimal hanoiTotalBalance;
     private BigDecimal danangTotalBalance;
     private BigDecimal hcmTotalBalance;
-    private BigDecimal systemTotalBalance;   // Tổng cả 3 site
+    private BigDecimal systemTotalBalance;
     private int hanoiAccountCount;
     private int danangAccountCount;
     private int hcmAccountCount;
 
-    // Getters & Setters
+    public BigDecimal getHanoiTotalBalance() {
+        return hanoiTotalBalance;
+    }
 
-    public BigDecimal getHanoiTotalBalance() { return hanoiTotalBalance; }
-    public void setHanoiTotalBalance(BigDecimal hanoiTotalBalance) { this.hanoiTotalBalance = hanoiTotalBalance; }
+    public void setHanoiTotalBalance(BigDecimal hanoiTotalBalance) {
+        this.hanoiTotalBalance = hanoiTotalBalance;
+    }
 
-    public BigDecimal getDanangTotalBalance() { return danangTotalBalance; }
-    public void setDanangTotalBalance(BigDecimal danangTotalBalance) { this.danangTotalBalance = danangTotalBalance; }
+    public BigDecimal getDanangTotalBalance() {
+        return danangTotalBalance;
+    }
 
-    public BigDecimal getHcmTotalBalance() { return hcmTotalBalance; }
-    public void setHcmTotalBalance(BigDecimal hcmTotalBalance) { this.hcmTotalBalance = hcmTotalBalance; }
+    public void setDanangTotalBalance(BigDecimal danangTotalBalance) {
+        this.danangTotalBalance = danangTotalBalance;
+    }
 
-    public BigDecimal getSystemTotalBalance() { return systemTotalBalance; }
-    public void setSystemTotalBalance(BigDecimal systemTotalBalance) { this.systemTotalBalance = systemTotalBalance; }
+    public BigDecimal getHcmTotalBalance() {
+        return hcmTotalBalance;
+    }
 
-    public int getHanoiAccountCount() { return hanoiAccountCount; }
-    public void setHanoiAccountCount(int hanoiAccountCount) { this.hanoiAccountCount = hanoiAccountCount; }
+    public void setHcmTotalBalance(BigDecimal hcmTotalBalance) {
+        this.hcmTotalBalance = hcmTotalBalance;
+    }
 
-    public int getDanangAccountCount() { return danangAccountCount; }
-    public void setDanangAccountCount(int danangAccountCount) { this.danangAccountCount = danangAccountCount; }
+    public BigDecimal getSystemTotalBalance() {
+        return systemTotalBalance;
+    }
 
-    public int getHcmAccountCount() { return hcmAccountCount; }
-    public void setHcmAccountCount(int hcmAccountCount) { this.hcmAccountCount = hcmAccountCount; }
+    public void setSystemTotalBalance(BigDecimal systemTotalBalance) {
+        this.systemTotalBalance = systemTotalBalance;
+    }
+
+    public int getHanoiAccountCount() {
+        return hanoiAccountCount;
+    }
+
+    public void setHanoiAccountCount(int hanoiAccountCount) {
+        this.hanoiAccountCount = hanoiAccountCount;
+    }
+
+    public int getDanangAccountCount() {
+        return danangAccountCount;
+    }
+
+    public void setDanangAccountCount(int danangAccountCount) {
+        this.danangAccountCount = danangAccountCount;
+    }
+
+    public int getHcmAccountCount() {
+        return hcmAccountCount;
+    }
+
+    public void setHcmAccountCount(int hcmAccountCount) {
+        this.hcmAccountCount = hcmAccountCount;
+    }
 }

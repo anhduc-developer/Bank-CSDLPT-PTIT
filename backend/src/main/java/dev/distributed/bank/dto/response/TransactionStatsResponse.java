@@ -2,9 +2,6 @@ package dev.distributed.bank.dto.response;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Response thống kê giao dịch theo chi nhánh.
- */
 public class TransactionStatsResponse {
 
     private String branchId;
@@ -15,8 +12,6 @@ public class TransactionStatsResponse {
     private long transferCount;
     private BigDecimal totalDepositAmount;
     private BigDecimal totalWithdrawAmount;
-
-    // Getters & Setters
 
     public String getBranchId() {
         return branchId;

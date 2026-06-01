@@ -14,19 +14,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Service: Quản lý khách hàng.
- *
- * Mỗi khách hàng thuộc 1 chi nhánh → dữ liệu nằm ở site tương ứng.
- * Khi tạo KH ở chi nhánh HN → INSERT vào MySQL Hà Nội.
- * Khi query KH chi nhánh HN → SELECT từ MySQL Hà Nội.
- */
 @Service
 public class CustomerService {
 
     private final SiteRouter siteRouter;
 
-    /** RowMapper: chuyển ResultSet → Customer object */
     private final RowMapper<Customer> customerRowMapper = (rs, rowNum) -> {
         Customer c = new Customer();
         c.setCustomerId(rs.getLong("customer_id"));
@@ -43,19 +35,11 @@ public class CustomerService {
         this.siteRouter = siteRouter;
     }
 
-    /**
-     * Lấy danh sách khách hàng theo chi nhánh.
-     * Query chỉ chạy ở 1 site — đây là LOCAL query.
-     */
     public List<Customer> getCustomersByBranch(String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         return jdbc.query("SELECT * FROM customer ORDER BY customer_id", customerRowMapper);
     }
 
-    /**
-     * Lấy danh sách TOÀN BỘ khách hàng — distributed query.
-     * Query cả 3 site rồi merge.
-     */
     public List<Customer> getAllCustomers() {
         List<Customer> all = new ArrayList<>();
         for (String branchId : siteRouter.getAllBranchIds()) {
@@ -71,10 +55,6 @@ public class CustomerService {
         return all;
     }
 
-    /**
-     * Lấy chi tiết 1 khách hàng.
-     * Cần biết branchId để query đúng site.
-     */
     public Customer getCustomerById(Long id, String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         List<Customer> customers = jdbc.query(
@@ -83,10 +63,6 @@ public class CustomerService {
         return customers.isEmpty() ? null : customers.get(0);
     }
 
-    /**
-     * Tạo khách hàng mới.
-     * INSERT vào site tương ứng với branchId trong request.
-     */
     public Customer createCustomer(CreateCustomerRequest request) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(request.getBranchId());
 
@@ -95,8 +71,7 @@ public class CustomerService {
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     "INSERT INTO customer (full_name, phone, email, address, branch_id) VALUES (?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-            );
+                    Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, request.getFullName());
             ps.setString(2, request.getPhone());
             ps.setString(3, request.getEmail());
@@ -110,22 +85,15 @@ public class CustomerService {
         return getCustomerById(newId, request.getBranchId());
     }
 
-    /**
-     * Cập nhật thông tin khách hàng.
-     */
     public Customer updateCustomer(Long id, CreateCustomerRequest request) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(request.getBranchId());
         jdbc.update(
                 "UPDATE customer SET full_name = ?, phone = ?, email = ?, address = ? WHERE customer_id = ?",
                 request.getFullName(), request.getPhone(), request.getEmail(),
-                request.getAddress(), id
-        );
+                request.getAddress(), id);
         return getCustomerById(id, request.getBranchId());
     }
 
-    /**
-     * Xóa khách hàng.
-     */
     public void deleteCustomer(Long id, String branchId) {
         JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
         jdbc.update("DELETE FROM customer WHERE customer_id = ?", id);

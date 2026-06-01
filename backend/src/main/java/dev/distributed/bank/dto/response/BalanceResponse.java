@@ -2,9 +2,6 @@ package dev.distributed.bank.dto.response;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Response tra cứu số dư tài khoản.
- */
 public class BalanceResponse {
 
     private Long accountId;

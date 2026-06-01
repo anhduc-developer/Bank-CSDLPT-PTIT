@@ -2,10 +2,6 @@ package dev.distributed.bank.dto.response;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Response top khách hàng giao dịch (gửi/rút).
- * Cấu trúc tương tự TopCustomerResponse nhưng dùng cho tổng số tiền giao dịch thay vì số dư hiện tại.
- */
 public class TopTransactionCustomerResponse {
 
     private Long customerId;
@@ -14,10 +10,11 @@ public class TopTransactionCustomerResponse {
     private BigDecimal totalAmount;
     private int transactionCount;
 
-    public TopTransactionCustomerResponse() {}
+    public TopTransactionCustomerResponse() {
+    }
 
     public TopTransactionCustomerResponse(Long customerId, String fullName, String branchId,
-                                          BigDecimal totalAmount, int transactionCount) {
+            BigDecimal totalAmount, int transactionCount) {
         this.customerId = customerId;
         this.fullName = fullName;
         this.branchId = branchId;
@@ -25,18 +22,43 @@ public class TopTransactionCustomerResponse {
         this.transactionCount = transactionCount;
     }
 
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
+    public Long getCustomerId() {
+        return customerId;
+    }
 
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
+    }
 
-    public String getBranchId() { return branchId; }
-    public void setBranchId(String branchId) { this.branchId = branchId; }
+    public String getFullName() {
+        return fullName;
+    }
 
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
 
-    public int getTransactionCount() { return transactionCount; }
-    public void setTransactionCount(int transactionCount) { this.transactionCount = transactionCount; }
+    public String getBranchId() {
+        return branchId;
+    }
+
+    public void setBranchId(String branchId) {
+        this.branchId = branchId;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public int getTransactionCount() {
+        return transactionCount;
+    }
+
+    public void setTransactionCount(int transactionCount) {
+        this.transactionCount = transactionCount;
+    }
 }

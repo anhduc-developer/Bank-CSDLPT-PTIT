@@ -2,19 +2,13 @@ package dev.distributed.bank.dto.request;
 
 import java.math.BigDecimal;
 
-/**
- * DTO: Request cho demo Deadlock.
- * 
- * Client gửi JSON body này khi gọi POST /api/demo/deadlock
- * Cần 2 tài khoản cùng chi nhánh để tạo deadlock trên cùng 1 database.
- */
 public class DeadlockDemoRequest {
 
-    private String branchId; // Chi nhánh (HN, DN, HCM)
-    private Long accountAId; // Tài khoản A
-    private Long accountBId; // Tài khoản B
-    private BigDecimal amountAtoB; // Số tiền Thread-1: A → B
-    private BigDecimal amountBtoA; // Số tiền Thread-2: B → A
+    private String branchId;
+    private Long accountAId;
+    private Long accountBId;
+    private BigDecimal amountAtoB;
+    private BigDecimal amountBtoA;
 
     public String getBranchId() {
         return branchId;

@@ -4,24 +4,20 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * DTO: Response kết quả chuyển tiền.
- * Trả về sau khi thực hiện transfer (cả internal và inter-branch).
- */
 public class TransferResultResponse {
 
-    private String transactionId; // UUID giao dịch phân tán (nếu inter-branch)
-    private String status; // "SUCCESS" / "FAILED" / "ROLLED_BACK"
+    private String transactionId;
+    private String status;
     private String fromBranch;
     private Long fromAccountId;
     private String toBranch;
     private Long toAccountId;
     private BigDecimal amount;
-    private BigDecimal sourceBalanceBefore;     // Số dư source ban đầu
-    private BigDecimal destBalanceBefore;       // Số dư dest ban đầu
-    private BigDecimal sourceBalanceAfterDebit; // Số dư source sau khi trừ (trước rollback)
-    private BigDecimal sourceBalanceAfter;      // Số dư source sau giao dịch (hoặc sau rollback)
-    private BigDecimal destBalanceAfter;        // Số dư dest sau giao dịch (hoặc sau rollback)
+    private BigDecimal sourceBalanceBefore;
+    private BigDecimal destBalanceBefore;
+    private BigDecimal sourceBalanceAfterDebit;
+    private BigDecimal sourceBalanceAfter;
+    private BigDecimal destBalanceAfter;
     private String message;
     private LocalDateTime timestamp;
     private List<String> logs;
@@ -29,8 +25,6 @@ public class TransferResultResponse {
     public TransferResultResponse() {
         this.timestamp = LocalDateTime.now();
     }
-
-    // Getters & Setters
 
     public String getTransactionId() {
         return transactionId;
