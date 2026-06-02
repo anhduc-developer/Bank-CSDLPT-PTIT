@@ -1,35 +1,10 @@
-# ================================================================
-# DOCKER COMPOSE — 3 MySQL Master + 3 MySQL Slave (Replication)
-#
-# Mỗi chi nhánh có 1 cặp Master-Slave:
-#   - mysql-hanoi       (Master, port 3307) → mysql-hanoi-slave  (Slave, port 3317)
-#   - mysql-danang      (Master, port 3308) → mysql-danang-slave (Slave, port 3318)
-#   - mysql-hcm         (Master, port 3309) → mysql-hcm-slave   (Slave, port 3319)
-#
-# Chạy:
-#   docker compose up -d --build
-#
-# Sau khi khởi động, thiết lập replication:
-#   ./docker/replication/setup-replication.sh
-#
-# Dừng:
-#   docker compose down
-#
-# Xóa toàn bộ data:
-#   docker compose down -v
-# ================================================================
-
 services:
-  # ============================================================
-  # SITE 1 — HÀ NỘI (MASTER)
-  # ============================================================
   mysql-hanoi:
     image: mysql:8
     container_name: mysql-hanoi
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -40,15 +15,12 @@ services:
       - "3307:3306"
 
     volumes:
-      # File SQL khởi tạo database
       - ./docker/init-hanoi.sql:/docker-entrypoint-initdb.d/init.sql
-      # Cấu hình Master Replication
       - ./docker/replication/master-hn.cnf:/etc/mysql/conf.d/replication.cnf
-      # Lưu dữ liệu MySQL
       - mysql-hanoi-data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,18 +28,12 @@ services:
 
     networks:
       - bank-network
-
-  # ============================================================
-  # SITE 1 — HÀ NỘI (SLAVE)
-  # Nhân bản toàn bộ dữ liệu từ mysql-hanoi
-  # ============================================================
   mysql-hanoi-slave:
     image: mysql:8
     container_name: mysql-hanoi-slave
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -78,9 +44,7 @@ services:
       - "3317:3306"
 
     volumes:
-      # Cấu hình Slave Replication
       - ./docker/replication/slave-hn.cnf:/etc/mysql/conf.d/replication.cnf
-      # Lưu dữ liệu Slave
       - mysql-hanoi-slave-data:/var/lib/mysql
 
     depends_on:
@@ -88,7 +52,7 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,17 +60,12 @@ services:
 
     networks:
       - bank-network
-
-  # ============================================================
-  # SITE 2 — ĐÀ NẴNG (MASTER)
-  # ============================================================
   mysql-danang:
     image: mysql:8
     container_name: mysql-danang
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -122,7 +81,7 @@ services:
       - mysql-danang-data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -130,17 +89,12 @@ services:
 
     networks:
       - bank-network
-
-  # ============================================================
-  # SITE 2 — ĐÀ NẴNG (SLAVE)
-  # ============================================================
   mysql-danang-slave:
     image: mysql:8
     container_name: mysql-danang-slave
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -159,7 +113,7 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -167,17 +121,12 @@ services:
 
     networks:
       - bank-network
-
-  # ============================================================
-  # SITE 3 — TP.HCM (MASTER)
-  # ============================================================
   mysql-hcm:
     image: mysql:8
     container_name: mysql-hcm
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -193,7 +142,7 @@ services:
       - mysql-hcm-data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -201,17 +150,12 @@ services:
 
     networks:
       - bank-network
-
-  # ============================================================
-  # SITE 3 — TP.HCM (SLAVE)
-  # ============================================================
   mysql-hcm-slave:
     image: mysql:8
     container_name: mysql-hcm-slave
     restart: always
 
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -230,7 +174,7 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -238,17 +182,9 @@ services:
 
     networks:
       - bank-network
-
-# ================================================================
-# NETWORKS
-# ================================================================
 networks:
   bank-network:
     driver: bridge
-
-# ================================================================
-# VOLUMES
-# ================================================================
 volumes:
   mysql-hanoi-data:
   mysql-danang-data:
