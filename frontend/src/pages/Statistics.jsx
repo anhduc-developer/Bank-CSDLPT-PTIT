@@ -78,7 +78,9 @@ export default function Statistics() {
     setLoading(false);
   };
 
-  useEffect(() => { loadTab(activeTab); }, [activeTab]);
+  useEffect(() => { 
+    loadTab(activeTab); 
+  }, [activeTab]);
 
   const tabItems = [
     {

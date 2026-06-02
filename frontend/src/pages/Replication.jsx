@@ -44,11 +44,6 @@ export default function Replication() {
   });
   const [selectedBranch, setSelectedBranch] = useState("HN");
 
-  // Load replication status on mount
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
   const fetchStatus = async () => {
     setLoading((prev) => ({ ...prev, status: true }));
     try {
@@ -60,6 +55,11 @@ export default function Replication() {
       setLoading((prev) => ({ ...prev, status: false }));
     }
   };
+
+  // Load replication status on mount
+  useEffect(() => {
+    fetchStatus();
+  }, []);
 
   const fetchCompare = async (branch) => {
     setLoading((prev) => ({ ...prev, compare: true }));
