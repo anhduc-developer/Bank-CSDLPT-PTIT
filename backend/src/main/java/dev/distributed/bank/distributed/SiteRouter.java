@@ -61,6 +61,16 @@ public class SiteRouter {
         };
     }
 
+    public JdbcTemplate getRawSlaveJdbcTemplate(String branchId) {
+        return switch (branchId.toUpperCase()) {
+            case "HN" -> hanoiSlaveJdbcTemplate;
+            case "DN" -> danangSlaveJdbcTemplate;
+            case "HCM" -> hcmSlaveJdbcTemplate;
+            default -> throw new IllegalArgumentException(
+                    "Unknown branch: " + branchId + ". Valid: HN, DN, HCM");
+        };
+    }
+
     public JdbcTemplate getSlaveJdbcTemplate(String branchId) {
 
         try {
@@ -72,7 +82,7 @@ public class SiteRouter {
                         "Unknown branch: " + branchId + ". Valid: HN, DN, HCM");
             };
 
-            slaveJdbc.queryForObject("SELECT 1", Integer.class);
+            slaveJdbc.execute("SELECT 1 FROM account LIMIT 1");
             System.out.println(">>>>>>>>>>>>>[READ] Đọc từ SLAVE " + branchId);
             return slaveJdbc;
 

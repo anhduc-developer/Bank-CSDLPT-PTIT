@@ -30,7 +30,7 @@ public class ReplicationService {
             status.put("branchName", branchNames.getOrDefault(branchId, branchId));
 
             try {
-                JdbcTemplate slaveJdbc = siteRouter.getSlaveJdbcTemplate(branchId);
+                JdbcTemplate slaveJdbc = siteRouter.getRawSlaveJdbcTemplate(branchId);
 
                 List<Map<String, Object>> slaveStatus = slaveJdbc.queryForList("SHOW REPLICA STATUS");
 
@@ -90,7 +90,7 @@ public class ReplicationService {
 
         try {
             JdbcTemplate masterJdbc = siteRouter.getJdbcTemplate(branchId);
-            JdbcTemplate slaveJdbc = siteRouter.getSlaveJdbcTemplate(branchId);
+            JdbcTemplate slaveJdbc = siteRouter.getRawSlaveJdbcTemplate(branchId);
 
             for (String table : tables) {
                 Map<String, Object> comparison = new LinkedHashMap<>();
@@ -141,7 +141,7 @@ public class ReplicationService {
 
         try {
             JdbcTemplate masterJdbc = siteRouter.getJdbcTemplate(branchId);
-            JdbcTemplate slaveJdbc = siteRouter.getSlaveJdbcTemplate(branchId);
+            JdbcTemplate slaveJdbc = siteRouter.getRawSlaveJdbcTemplate(branchId);
 
             Integer masterCountBefore = masterJdbc.queryForObject(
                     "SELECT COUNT(*) FROM transaction_history", Integer.class);

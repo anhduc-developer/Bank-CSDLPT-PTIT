@@ -531,7 +531,7 @@ export default function Replication() {
                         <>
                           <br />
                           <Tag color={step.replicated ? "success" : "warning"}>
-                            {step.replicated ? "ĐÃ ĐỒNG BỘ ✅" : "CHƯA ĐỒNG BỘ ⏳"}
+                            {step.replicated ? "ĐÃ ĐỒNG BỘ" : "CHƯA ĐỒNG BỘ ⏳"}
                           </Tag>
                         </>
                       )}
