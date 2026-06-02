@@ -24,7 +24,7 @@ public class ReplicationController {
 
     @GetMapping("/compare/{branchId}")
     public ResponseEntity<Map<String, Object>> compareData(
-            @PathVariable String branchId) {
+            @PathVariable("branchId") String branchId) {
         return ResponseEntity.ok(replicationService.compareData(branchId.toUpperCase()));
     }
 
@@ -39,7 +39,7 @@ public class ReplicationController {
 
     @PostMapping("/demo-lag/{branchId}")
     public ResponseEntity<Map<String, Object>> demoReplicationLag(
-            @PathVariable String branchId) {
+            @PathVariable("branchId") String branchId) {
         return ResponseEntity.ok(replicationService.demoReplicationLag(branchId.toUpperCase()));
     }
 }
