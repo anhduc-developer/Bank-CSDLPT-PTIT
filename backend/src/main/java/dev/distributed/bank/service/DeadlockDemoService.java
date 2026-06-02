@@ -19,20 +19,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Service: Demo Deadlock trong chuyển tiền.
- *
- * MÔ PHỎNG DEADLOCK:
- * Thread 1: Lock A → sleep → cố lock B → DEADLOCK (hoặc thành công)
- * Thread 2: Lock B → sleep → cố lock A → DEADLOCK (hoặc thành công)
- *
- * MySQL sẽ phát hiện deadlock (innodb_deadlock_detect = ON)
- * và rollback 1 transaction (victim), transaction còn lại thành công (winner).
- *
- * ĐÂY LÀ DEMO — CỐ Ý KHÔNG LOCK THEO THỨ TỰ ID ĐỂ TẠO DEADLOCK!
- * (Trong code production, chúng ta luôn lock theo thứ tự ID tăng dần để tránh
- * deadlock)
- */
 @Service
 public class DeadlockDemoService {
 
@@ -53,9 +39,6 @@ public class DeadlockDemoService {
                 JdbcTemplate jdbc = siteRouter.getJdbcTemplate(branchId);
                 PlatformTransactionManager txManager = siteRouter.getTransactionManager(branchId);
 
-                // ============================================================
-                // LOG CONTAINER (thread-safe)
-                // ============================================================
                 List<String> combinedLogs = Collections.synchronizedList(new ArrayList<>());
                 List<String> thread1Logs = Collections.synchronizedList(new ArrayList<>());
                 List<String> thread2Logs = Collections.synchronizedList(new ArrayList<>());
@@ -69,9 +52,6 @@ public class DeadlockDemoService {
                 // Latch để đồng bộ 2 thread — đảm bảo cả 2 đã lock xong record đầu tiên
                 CountDownLatch bothLockedFirst = new CountDownLatch(2);
 
-                // ============================================================
-                // ĐỌC SỐ DƯ BAN ĐẦU (read-only, không lock)
-                // ============================================================
                 BigDecimal balanceA = jdbc.queryForObject(
                                 "SELECT balance FROM account WHERE account_id = ?",
                                 BigDecimal.class, accountAId);
@@ -105,9 +85,7 @@ public class DeadlockDemoService {
                                 "Số dư ban đầu: Account #" + accountAId + " = " + balanceA + " | Account #" + accountBId
                                                 + " = " + balanceB);
 
-                // ============================================================
                 // THREAD 1: A → B (lock A trước, lock B sau)
-                // ============================================================
                 CompletableFuture<Void> future1 = CompletableFuture.runAsync(() -> {
                         TransactionStatus tx = txManager.getTransaction(new DefaultTransactionDefinition());
                         try {
@@ -126,18 +104,14 @@ public class DeadlockDemoService {
 
                                 System.out.println("[Thread-1] LOCKED Account #" + accountAId + " thành công!");
 
-                                // Báo hiệu đã lock xong record đầu tiên
                                 bothLockedFirst.countDown();
 
-                                // Chờ Thread 2 cũng lock xong record đầu tiên
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "Chờ Thread-2 lock Account #" + accountBId + "...");
                                 bothLockedFirst.await();
 
-                                // Delay nhỏ để đảm bảo cả 2 thread đều cố lock record thứ 2 cùng lúc
                                 Thread.sleep(200);
 
-                                // STEP 2: Cố lock Account B → SẼ BỊ BLOCK (vì Thread 2 đang giữ)
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "Đang cố lock Account #" + accountBId + " (SELECT ... FOR UPDATE)...");
 
@@ -148,13 +122,11 @@ public class DeadlockDemoService {
                                                 "SELECT balance FROM account WHERE account_id = ? FOR UPDATE",
                                                 BigDecimal.class, accountBId);
 
-                                // Nếu đến được đây → thread này là WINNER
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "Lock Account #" + accountBId + " thành công! (Thread này THẮNG)");
 
                                 System.out.println("[Thread-1] LOCKED Account #" + accountBId + " — WINNER!");
 
-                                // Thực hiện chuyển tiền A → B
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "Trừ " + amountAtoB + " từ Account #" + accountAId);
 
@@ -167,7 +139,6 @@ public class DeadlockDemoService {
                                 jdbc.update("UPDATE account SET balance = balance + ? WHERE account_id = ?",
                                                 amountAtoB, accountBId);
 
-                                // Lấy số dư sau khi chuyển
                                 BigDecimal balanceAAfterT1 = jdbc.queryForObject(
                                                 "SELECT balance FROM account WHERE account_id = ?",
                                                 BigDecimal.class, accountAId);
@@ -175,7 +146,6 @@ public class DeadlockDemoService {
                                                 "SELECT balance FROM account WHERE account_id = ?",
                                                 BigDecimal.class, accountBId);
 
-                                // GHI LỊCH SỬ GIAO DỊCH — bên gửi (TRANSFER_OUT)
                                 jdbc.update(
                                                 "INSERT INTO transaction_history " +
                                                                 "(transaction_type, amount, account_id, related_account_id, balance_after, status, description) "
@@ -184,7 +154,6 @@ public class DeadlockDemoService {
                                                 amountAtoB, accountAId, accountBId, balanceAAfterT1,
                                                 "Deadlock demo: A→B thành công");
 
-                                // GHI LỊCH SỬ GIAO DỊCH — bên nhận (TRANSFER_IN)
                                 jdbc.update(
                                                 "INSERT INTO transaction_history " +
                                                                 "(transaction_type, amount, account_id, related_account_id, balance_after, status, description) "
@@ -196,7 +165,6 @@ public class DeadlockDemoService {
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "Đã ghi lịch sử giao dịch cho cả 2 tài khoản");
 
-                                // COMMIT
                                 txManager.commit(tx);
                                 thread1Success.set(true);
 
@@ -206,7 +174,6 @@ public class DeadlockDemoService {
                                 System.out.println("[Thread-1] COMMIT thành công!");
 
                         } catch (DeadlockLoserDataAccessException e) {
-                                // Thread này là VICTIM — MySQL đã rollback
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
                                                 "DEADLOCK DETECTED! MySQL chọn Thread-1 làm VICTIM");
                                 addLog(combinedLogs, thread1Logs, null, "THREAD-1",
@@ -225,7 +192,6 @@ public class DeadlockDemoService {
                                 } catch (Exception ignored) {
                                 }
 
-                                // Ghi log thất bại vào database (ngoài transaction đã bị rollback)
                                 try {
                                         BigDecimal currentBalanceA = jdbc.queryForObject(
                                                         "SELECT balance FROM account WHERE account_id = ?",
@@ -257,9 +223,7 @@ public class DeadlockDemoService {
                         }
                 });
 
-                // ============================================================
                 // THREAD 2: B → A (lock B trước, lock A sau) — NGƯỢC THỨ TỰ!
-                // ============================================================
                 CompletableFuture<Void> future2 = CompletableFuture.runAsync(() -> {
                         TransactionStatus tx = txManager.getTransaction(new DefaultTransactionDefinition());
                         try {
@@ -281,15 +245,12 @@ public class DeadlockDemoService {
 
                                 System.out.println("[Thread-2] LOCKED Account #" + accountBId + " thành công!");
 
-                                // Báo hiệu đã lock xong record đầu tiên
                                 bothLockedFirst.countDown();
 
-                                // Chờ Thread 1 cũng lock xong record đầu tiên
                                 addLog(combinedLogs, thread2Logs, null, "THREAD-2",
                                                 "Chờ Thread-1 lock Account #" + accountAId + "...");
                                 bothLockedFirst.await();
 
-                                // Delay nhỏ
                                 Thread.sleep(200);
 
                                 // STEP 2: Cố lock Account A → SẼ BỊ BLOCK (vì Thread 1 đang giữ)
@@ -309,7 +270,6 @@ public class DeadlockDemoService {
 
                                 System.out.println("[Thread-2] LOCKED Account #" + accountAId + " — WINNER!");
 
-                                // Thực hiện chuyển tiền B → A
                                 addLog(combinedLogs, thread2Logs, null, "THREAD-2",
                                                 "Trừ " + amountBtoA + " từ Account #" + accountBId);
 
@@ -322,7 +282,6 @@ public class DeadlockDemoService {
                                 jdbc.update("UPDATE account SET balance = balance + ? WHERE account_id = ?",
                                                 amountBtoA, accountAId);
 
-                                // Lấy số dư sau khi chuyển
                                 BigDecimal balanceBAfterT2 = jdbc.queryForObject(
                                                 "SELECT balance FROM account WHERE account_id = ?",
                                                 BigDecimal.class, accountBId);
@@ -330,7 +289,6 @@ public class DeadlockDemoService {
                                                 "SELECT balance FROM account WHERE account_id = ?",
                                                 BigDecimal.class, accountAId);
 
-                                // GHI LỊCH SỬ GIAO DỊCH — bên gửi (TRANSFER_OUT)
                                 jdbc.update(
                                                 "INSERT INTO transaction_history " +
                                                                 "(transaction_type, amount, account_id, related_account_id, balance_after, status, description) "
@@ -338,8 +296,6 @@ public class DeadlockDemoService {
                                                                 "VALUES ('TRANSFER_OUT', ?, ?, ?, ?, 'SUCCESS', ?)",
                                                 amountBtoA, accountBId, accountAId, balanceBAfterT2,
                                                 "Deadlock demo: B→A thành công");
-
-                                // GHI LỊCH SỬ GIAO DỊCH — bên nhận (TRANSFER_IN)
                                 jdbc.update(
                                                 "INSERT INTO transaction_history " +
                                                                 "(transaction_type, amount, account_id, related_account_id, balance_after, status, description) "
@@ -380,7 +336,6 @@ public class DeadlockDemoService {
                                 } catch (Exception ignored) {
                                 }
 
-                                // Ghi log thất bại vào database (ngoài transaction đã bị rollback)
                                 try {
                                         BigDecimal currentBalanceB = jdbc.queryForObject(
                                                         "SELECT balance FROM account WHERE account_id = ?",
@@ -412,14 +367,10 @@ public class DeadlockDemoService {
                         }
                 });
 
-                // ============================================================
                 // CHỜ CẢ 2 THREAD HOÀN TẤT
-                // ============================================================
                 CompletableFuture.allOf(future1, future2).join();
 
-                // ============================================================
                 // ĐỌC SỐ DƯ SAU CÙNG
-                // ============================================================
                 BigDecimal balanceAAfter = jdbc.queryForObject(
                                 "SELECT balance FROM account WHERE account_id = ?",
                                 BigDecimal.class, accountAId);
@@ -432,9 +383,7 @@ public class DeadlockDemoService {
                                 "Số dư sau cùng: Account #" + accountAId + " = " + balanceAAfter
                                                 + " | Account #" + accountBId + " = " + balanceBAfter);
 
-                // ============================================================
                 // XÁC ĐỊNH WINNER / VICTIM
-                // ============================================================
                 String winnerThread;
                 String victimThread;
                 String winnerDirection;
@@ -451,7 +400,6 @@ public class DeadlockDemoService {
                         winnerDirection = "B → A (Account #" + accountBId + " → #" + accountAId + ")";
                         victimDirection = "A → B (Account #" + accountAId + " → #" + accountBId + ")";
                 } else {
-                        // Edge case: cả 2 đều fail hoặc cả 2 đều success (rất hiếm)
                         winnerThread = "N/A";
                         victimThread = "N/A";
                         winnerDirection = "N/A";
@@ -463,9 +411,6 @@ public class DeadlockDemoService {
                 addLog(combinedLogs, null, null, "SYSTEM",
                                 "VICTIM: " + victimThread + " (" + victimDirection + ") — Đã bị MySQL ROLLBACK");
 
-                // ============================================================
-                // IN KẾT QUẢ RA TERMINAL
-                // ============================================================
                 System.out.println();
                 System.out.println("══════════════════════════════════════════════════════════");
                 System.out.println("  KẾT QUẢ DEMO DEADLOCK");
@@ -478,9 +423,6 @@ public class DeadlockDemoService {
                 System.out.println("══════════════════════════════════════════════════════════");
                 System.out.println();
 
-                // ============================================================
-                // BUILD RESPONSE
-                // ============================================================
                 DeadlockDemoResponse response = new DeadlockDemoResponse();
                 response.setStatus("DEADLOCK_DETECTED");
                 response.setBranchId(branchId);
@@ -503,10 +445,6 @@ public class DeadlockDemoService {
                 return response;
         }
 
-        /**
-         * Helper: Thêm log vào container.
-         * Mỗi log có format: "[timestamp] [thread] message"
-         */
         private void addLog(List<String> combinedLogs,
                         List<String> threadLogs,
                         @SuppressWarnings("unused") Void unused,
@@ -524,7 +462,6 @@ public class DeadlockDemoService {
                         threadLogs.add(logEntry);
                 }
 
-                // Cũng in ra console
                 System.out.println(logEntry);
         }
 }

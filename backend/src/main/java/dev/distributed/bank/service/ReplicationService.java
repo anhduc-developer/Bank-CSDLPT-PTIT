@@ -4,18 +4,9 @@ import dev.distributed.bank.distributed.SiteRouter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * Service: Giám sát và demo Replication.
- *
- * Chức năng:
- * 1. Xem trạng thái Slave Replication (IO Thread, SQL Thread, Lag)
- * 2. So sánh dữ liệu Master vs Slave (đếm bản ghi)
- * 3. Demo Replication Lag — ghi Master, đọc Slave ngay lập tức
- */
 @Service
 public class ReplicationService {
 
@@ -25,23 +16,7 @@ public class ReplicationService {
         this.siteRouter = siteRouter;
     }
 
-    // ============================================================
-    // 1. Trạng thái Replication của tất cả sites
-    // ============================================================
-
-    /**
-     * Lấy trạng thái SHOW REPLICA STATUS từ mỗi Slave.
-     * (MySQL 8.4+ dùng SHOW REPLICA STATUS thay cho SHOW SLAVE STATUS)
-     * Trả về danh sách 3 objects (HN, DN, HCM) với thông tin:
-     * - Replica_IO_Running
-     * - Replica_SQL_Running
-     * - Seconds_Behind_Source
-     * - Source_Host
-     * - Relay_Log_File
-     * - Last_Error
-     */
     public List<Map<String, Object>> getReplicationStatus() {
-        System.out.println("═══ [REPLICATION] Checking Replication Status ═══");
 
         List<Map<String, Object>> statusList = new ArrayList<>();
         Map<String, String> branchNames = Map.of(
@@ -57,13 +32,10 @@ public class ReplicationService {
             try {
                 JdbcTemplate slaveJdbc = siteRouter.getSlaveJdbcTemplate(branchId);
 
-                // Chạy SHOW REPLICA STATUS trên Slave (MySQL 8.4+)
                 List<Map<String, Object>> slaveStatus = slaveJdbc.queryForList("SHOW REPLICA STATUS");
 
                 if (!slaveStatus.isEmpty()) {
                     Map<String, Object> ss = slaveStatus.get(0);
-
-                    // MySQL 8.4+ dùng Replica_IO_Running, Source_Host, v.v.
                     status.put("slaveIORunning", ss.get("Replica_IO_Running"));
                     status.put("slaveSQLRunning", ss.get("Replica_SQL_Running"));
                     status.put("secondsBehindMaster", ss.get("Seconds_Behind_Source"));
@@ -102,20 +74,10 @@ public class ReplicationService {
             statusList.add(status);
         }
 
-        System.out.println("═══════════════════════════════════════════");
         return statusList;
     }
 
-    // ============================================================
-    // 2. So sánh dữ liệu Master vs Slave
-    // ============================================================
-
-    /**
-     * So sánh COUNT(*) trên mỗi bảng giữa Master và Slave của 1 chi nhánh.
-     * Cho thấy dữ liệu đã được nhân bản đầy đủ hay chưa.
-     */
     public Map<String, Object> compareData(String branchId) {
-        System.out.println("═══ [REPLICATION] Comparing Master vs Slave — " + branchId + " ═══");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("branchId", branchId);
@@ -149,7 +111,7 @@ public class ReplicationService {
 
                     System.out.println("  " + table + ": Master=" + masterCount +
                             ", Slave=" + slaveCount +
-                            (Objects.equals(masterCount, slaveCount) ? " ✅" : " ❌ KHÁC BIỆT"));
+                            (Objects.equals(masterCount, slaveCount) ? "OK" : " KHÁC BIỆT"));
 
                 } catch (Exception e) {
                     comparison.put("error", e.getMessage());
@@ -158,8 +120,6 @@ public class ReplicationService {
 
                 tableComparisons.add(comparison);
             }
-
-            // Tổng kết
             boolean allInSync = tableComparisons.stream()
                     .allMatch(tc -> Boolean.TRUE.equals(tc.get("inSync")));
             result.put("allInSync", allInSync);
@@ -169,25 +129,11 @@ public class ReplicationService {
         }
 
         result.put("tables", tableComparisons);
-        System.out.println("═══════════════════════════════════════════");
 
         return result;
     }
 
-    // ============================================================
-    // 3. Demo Replication Lag
-    // ============================================================
-
-    /**
-     * Demo Replication Lag:
-     * 1. Ghi 1 record vào Master (transaction_history)
-     * 2. Đọc ngay lập tức từ Slave — có thể chưa thấy
-     * 3. Đợi 1 giây → đọc lại từ Slave — đã thấy
-     *
-     * Kết quả cho thấy thời gian trễ thực tế của replication.
-     */
     public Map<String, Object> demoReplicationLag(String branchId) {
-        System.out.println("═══ [REPLICATION] Demo Replication Lag — " + branchId + " ═══");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("branchId", branchId);
@@ -197,7 +143,6 @@ public class ReplicationService {
             JdbcTemplate masterJdbc = siteRouter.getJdbcTemplate(branchId);
             JdbcTemplate slaveJdbc = siteRouter.getSlaveJdbcTemplate(branchId);
 
-            // Step 1: Đếm trước khi ghi
             Integer masterCountBefore = masterJdbc.queryForObject(
                     "SELECT COUNT(*) FROM transaction_history", Integer.class);
             Integer slaveCountBefore = slaveJdbc.queryForObject(
@@ -265,7 +210,6 @@ public class ReplicationService {
 
             // Step 4: Đợi rồi đọc lại
             if (!foundImmediate) {
-                // Polling until replicated or timeout
                 boolean replicated = false;
                 int attempts = 0;
                 int maxAttempts = 10;
@@ -326,7 +270,6 @@ public class ReplicationService {
         }
 
         result.put("steps", steps);
-        System.out.println("═══════════════════════════════════════════");
 
         return result;
     }
