@@ -110,11 +110,7 @@ export default function Replication() {
       render: (_, record) => (
         <Tag
           icon={
-            record.healthy ? (
-              <CheckCircleOutlined />
-            ) : (
-              <CloseCircleOutlined />
-            )
+            record.healthy ? <CheckCircleOutlined /> : <CloseCircleOutlined />
           }
           color={record.healthy ? "success" : "error"}
         >
@@ -189,9 +185,7 @@ export default function Replication() {
       key: "inSync",
       render: (val) => (
         <Tag
-          icon={
-            val ? <CheckCircleOutlined /> : <CloseCircleOutlined />
-          }
+          icon={val ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
           color={val ? "success" : "error"}
         >
           {val ? "ĐỒNG BỘ" : "CHƯA ĐỒNG BỘ"}
@@ -221,7 +215,6 @@ export default function Replication() {
         DATA REPLICATION
       </Title>
 
-
       {/* ============================================================ */}
       {/* SECTION 1: Trạng thái Replication */}
       {/* ============================================================ */}
@@ -243,8 +236,6 @@ export default function Replication() {
         }
         style={{ marginBottom: 24 }}
       >
-
-
         <Table
           columns={statusColumns}
           dataSource={statusData}
@@ -305,7 +296,6 @@ export default function Replication() {
         }
         style={{ marginBottom: 24 }}
       >
-
         <Space style={{ marginBottom: 16 }}>
           <Select
             value={selectedBranch}
@@ -363,8 +353,8 @@ export default function Replication() {
                     value={
                       compareData.timestamp
                         ? new Date(compareData.timestamp).toLocaleTimeString(
-                          "vi-VN"
-                        )
+                            "vi-VN",
+                          )
                         : "N/A"
                     }
                     prefix={<ClockCircleOutlined />}
@@ -395,8 +385,6 @@ export default function Replication() {
           </Space>
         }
       >
-
-
         <Space style={{ marginBottom: 16 }}>
           <Select
             value={selectedBranch}
@@ -487,7 +475,7 @@ export default function Replication() {
                     step.replicated === false
                       ? "orange"
                       : step.replicated === true ||
-                        step.action?.includes("ĐÃ ĐỒNG BỘ")
+                          step.action?.includes("ĐÃ ĐỒNG BỘ")
                         ? "green"
                         : "blue",
                   children: (
@@ -521,7 +509,9 @@ export default function Replication() {
                         <>
                           <br />
                           <Tag
-                            color={step.replicationLagMs === 0 ? "green" : "orange"}
+                            color={
+                              step.replicationLagMs === 0 ? "green" : "orange"
+                            }
                           >
                             Replication lag: {step.replicationLagMs}ms
                           </Tag>
@@ -531,7 +521,7 @@ export default function Replication() {
                         <>
                           <br />
                           <Tag color={step.replicated ? "success" : "warning"}>
-                            {step.replicated ? "ĐÃ ĐỒNG BỘ" : "CHƯA ĐỒNG BỘ ⏳"}
+                            {step.replicated ? "ĐÃ ĐỒNG BỘ" : "CHƯA ĐỒNG BỘ"}
                           </Tag>
                         </>
                       )}
